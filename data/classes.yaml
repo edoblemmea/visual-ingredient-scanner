@@ -1,0 +1,96 @@
+# Unified food class list for YOLO training, Gemini prompts, and shape heuristics.
+# shape_hint: sphere | cylinder | box
+# typical_density_kg_m3: used as fallback if Gemini call fails
+
+classes:
+
+  # ── Fruits ────────────────────────────────────────────────────────────────
+  - { name: apple,        shape_hint: sphere,   typical_density_kg_m3: 820  }
+  - { name: avocado,      shape_hint: sphere,   typical_density_kg_m3: 800  }
+  - { name: banana,       shape_hint: cylinder, typical_density_kg_m3: 770  }
+  - { name: blackberries, shape_hint: sphere,   typical_density_kg_m3: 700  }
+  - { name: blueberries,  shape_hint: sphere,   typical_density_kg_m3: 700  }
+  - { name: cantaloupe,   shape_hint: sphere,   typical_density_kg_m3: 900  }
+  - { name: coconut,      shape_hint: sphere,   typical_density_kg_m3: 700  }
+  - { name: fig,          shape_hint: sphere,   typical_density_kg_m3: 800  }
+  - { name: grapes,       shape_hint: sphere,   typical_density_kg_m3: 700  }
+  - { name: grapefruit,   shape_hint: sphere,   typical_density_kg_m3: 840  }
+  - { name: kiwi,         shape_hint: sphere,   typical_density_kg_m3: 800  }
+  - { name: lemon,        shape_hint: sphere,   typical_density_kg_m3: 840  }
+  - { name: lime,         shape_hint: sphere,   typical_density_kg_m3: 850  }
+  - { name: mango,        shape_hint: sphere,   typical_density_kg_m3: 830  }
+  - { name: orange,       shape_hint: sphere,   typical_density_kg_m3: 860  }
+  - { name: peach,        shape_hint: sphere,   typical_density_kg_m3: 800  }
+  - { name: pear,         shape_hint: sphere,   typical_density_kg_m3: 810  }
+  - { name: pineapple,    shape_hint: cylinder, typical_density_kg_m3: 500  }
+  - { name: pomegranate,  shape_hint: sphere,   typical_density_kg_m3: 900  }
+  - { name: raspberries,  shape_hint: sphere,   typical_density_kg_m3: 600  }
+  - { name: strawberries, shape_hint: sphere,   typical_density_kg_m3: 700  }
+  - { name: watermelon,   shape_hint: sphere,   typical_density_kg_m3: 960  }
+
+  # ── Vegetables ────────────────────────────────────────────────────────────
+  - { name: artichoke,       shape_hint: sphere,   typical_density_kg_m3: 600  }
+  - { name: beet,            shape_hint: sphere,   typical_density_kg_m3: 760  }
+  - { name: broccoli,        shape_hint: box,      typical_density_kg_m3: 370  }
+  - { name: brussels_sprouts,shape_hint: sphere,   typical_density_kg_m3: 590  }
+  - { name: cabbage,         shape_hint: sphere,   typical_density_kg_m3: 560  }
+  - { name: carrot,          shape_hint: cylinder, typical_density_kg_m3: 640  }
+  - { name: cauliflower,     shape_hint: sphere,   typical_density_kg_m3: 480  }
+  - { name: celery,          shape_hint: cylinder, typical_density_kg_m3: 500  }
+  - { name: chili,           shape_hint: cylinder, typical_density_kg_m3: 500  }
+  - { name: corn,            shape_hint: cylinder, typical_density_kg_m3: 720  }
+  - { name: cucumber,        shape_hint: cylinder, typical_density_kg_m3: 640  }
+  - { name: eggplant,        shape_hint: cylinder, typical_density_kg_m3: 640  }
+  - { name: garlic,          shape_hint: sphere,   typical_density_kg_m3: 600  }
+  - { name: ginger,          shape_hint: box,      typical_density_kg_m3: 600  }
+  - { name: green_beans,     shape_hint: cylinder, typical_density_kg_m3: 500  }
+  - { name: lettuce,         shape_hint: box,      typical_density_kg_m3: 200  }
+  - { name: mushrooms,       shape_hint: sphere,   typical_density_kg_m3: 330  }
+  - { name: okra,            shape_hint: cylinder, typical_density_kg_m3: 380  }
+  - { name: onion,           shape_hint: sphere,   typical_density_kg_m3: 720  }
+  - { name: peas,            shape_hint: sphere,   typical_density_kg_m3: 700  }
+  - { name: pepper,          shape_hint: box,      typical_density_kg_m3: 480  }
+  - { name: potato,          shape_hint: sphere,   typical_density_kg_m3: 770  }
+  - { name: pumpkin,         shape_hint: sphere,   typical_density_kg_m3: 670  }
+  - { name: radish,          shape_hint: sphere,   typical_density_kg_m3: 700  }
+  - { name: spinach,         shape_hint: box,      typical_density_kg_m3: 200  }
+  - { name: sweet_potato,    shape_hint: sphere,   typical_density_kg_m3: 760  }
+  - { name: tomato,          shape_hint: sphere,   typical_density_kg_m3: 1000 }
+  - { name: zucchini,        shape_hint: cylinder, typical_density_kg_m3: 620  }
+
+  # ── Proteins & dairy ──────────────────────────────────────────────────────
+  - { name: beef,         shape_hint: box,      typical_density_kg_m3: 1050 }
+  - { name: butter,       shape_hint: box,      typical_density_kg_m3: 910  }
+  - { name: cheese,       shape_hint: box,      typical_density_kg_m3: 1100 }
+  - { name: chicken,      shape_hint: box,      typical_density_kg_m3: 1050 }
+  - { name: egg,          shape_hint: sphere,   typical_density_kg_m3: 1030 }
+  - { name: fish,         shape_hint: box,      typical_density_kg_m3: 1050 }
+  - { name: ham,          shape_hint: box,      typical_density_kg_m3: 1030 }
+  - { name: heavy_cream,  shape_hint: cylinder, typical_density_kg_m3: 1000 }
+  - { name: pork,         shape_hint: box,      typical_density_kg_m3: 1050 }
+  - { name: shrimp,       shape_hint: box,      typical_density_kg_m3: 900  }
+  - { name: tofu,         shape_hint: box,      typical_density_kg_m3: 1020 }
+  - { name: yogurt,       shape_hint: cylinder, typical_density_kg_m3: 1050 }
+
+  # ── Pantry & packaged ─────────────────────────────────────────────────────
+  - { name: bread,        shape_hint: box,      typical_density_kg_m3: 280  }
+  - { name: cereal,       shape_hint: box,      typical_density_kg_m3: 200  }
+  - { name: chocolate,    shape_hint: box,      typical_density_kg_m3: 1300 }
+  - { name: coffee,       shape_hint: box,      typical_density_kg_m3: 400  }
+  - { name: flour,        shape_hint: box,      typical_density_kg_m3: 600  }
+  - { name: honey,        shape_hint: cylinder, typical_density_kg_m3: 1400 }
+  - { name: hummus,       shape_hint: cylinder, typical_density_kg_m3: 1000 }
+  - { name: jam,          shape_hint: cylinder, typical_density_kg_m3: 1200 }
+  - { name: juice,        shape_hint: cylinder, typical_density_kg_m3: 1030 }
+  - { name: mayonnaise,   shape_hint: cylinder, typical_density_kg_m3: 900  }
+  - { name: milk,         shape_hint: box,      typical_density_kg_m3: 1020 }
+  - { name: nuts,         shape_hint: box,      typical_density_kg_m3: 600  }
+  - { name: oil,          shape_hint: cylinder, typical_density_kg_m3: 910  }
+  - { name: pasta,        shape_hint: box,      typical_density_kg_m3: 500  }
+  - { name: rice,         shape_hint: box,      typical_density_kg_m3: 850  }
+  - { name: soda,         shape_hint: cylinder, typical_density_kg_m3: 1000 }
+  - { name: sugar,        shape_hint: box,      typical_density_kg_m3: 850  }
+  - { name: tea,          shape_hint: box,      typical_density_kg_m3: 300  }
+  - { name: tomato_sauce, shape_hint: cylinder, typical_density_kg_m3: 1050 }
+  - { name: vinegar,      shape_hint: cylinder, typical_density_kg_m3: 1000 }
+  - { name: water,        shape_hint: cylinder, typical_density_kg_m3: 1000 }

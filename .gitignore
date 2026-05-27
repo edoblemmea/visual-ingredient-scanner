@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Environment
+.env
+
+# Model weights (too large for git)
+models/yolo/*.pt
+models/yolo/*.tflite
+models/yolo/*.mlmodel
+models/yolo/*.mlpackage
+models/depth/*.onnx
+models/depth/*.onnx.data
+
+# Datasets (downloaded from Roboflow, not committed)
+datasets/
+
+# Runtime caches
+data/density_cache.json
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Flutter build artifacts
+mobile/build/
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
