@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import os
 
-import google.generativeai as genai
+from google import genai
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -42,11 +42,18 @@ def generate_recipes(ingredients: dict[str, float]) -> list[dict]:
     if not api_key:
         return [{"name": "API key not configured", "ingredients_used": [], "steps": [], "servings": 0}]
 
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("gemini-2.0-flash-lite")
-    response = model.generate_content(prompt)
-    text = response.text.strip()
-    if text.startswith("```"):
-        text = "\n".join(text.split("\n")[1:-1])
-
-    return json.loads(text)
+    try:
+        client = genai.Client(api_key=api_key)
+        response = client.models.generate_content(
+            model="gemini-1.5-flash",
+            contents=prompt,
+        )
+        text = response.text.strip()
+        if text.startswith("```"):
+            text = "\n".join(text.split("\n")[1:-1])
+        return json.loads(text)
+    except Exception as e:
+        return [{"name": f"Recipe generation unavailable ({type(e).__name__})",
+                 "ingredients_used": list(ingredients.keys()),
+                 "steps": ["Gemini API quota exceeded or unavailable. Try again later."],
+                 "servings": 0}]

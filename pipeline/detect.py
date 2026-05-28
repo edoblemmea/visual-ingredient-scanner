@@ -20,7 +20,7 @@ class Detector:
     def __init__(self, model_path: str | Path) -> None:
         self.model = YOLO(str(model_path))
 
-    def detect(self, image: Image.Image, conf_threshold: float = 0.25) -> list[Detection]:
+    def detect(self, image: Image.Image, conf_threshold: float = 0.10) -> list[Detection]:
         results = self.model(image, conf=conf_threshold, verbose=False)[0]
         detections: list[Detection] = []
         for box in results.boxes:

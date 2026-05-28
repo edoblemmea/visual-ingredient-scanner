@@ -5,7 +5,7 @@ import json
 import os
 from pathlib import Path
 
-import google.generativeai as genai
+from google import genai
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -45,10 +45,12 @@ def get_densities(class_names: list[str]) -> dict[str, float]:
         api_key = os.environ.get("GEMINI_API_KEY")
         if api_key:
             try:
-                genai.configure(api_key=api_key)
-                model = genai.GenerativeModel("gemini-2.0-flash-lite")
+                client = genai.Client(api_key=api_key)
                 prompt = _PROMPT_TEMPLATE.format(classes=", ".join(missing))
-                response = model.generate_content(prompt)
+                response = client.models.generate_content(
+                    model="gemini-1.5-flash",
+                    contents=prompt,
+                )
                 text = response.text.strip()
                 # Strip markdown code fences if present
                 if text.startswith("```"):

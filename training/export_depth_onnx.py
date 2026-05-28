@@ -16,7 +16,10 @@ import torch
 from transformers import AutoModelForDepthEstimation
 
 
-_CHECKPOINT = "depth-anything/Depth-Anything-V2-Small"
+# Use the metric-indoor checkpoint so the ONNX outputs actual metres.
+# The relative checkpoint ("depth-anything/Depth-Anything-V2-Small") outputs
+# unitless disparity and requires post-hoc normalisation — avoid it.
+_CHECKPOINT = "depth-anything/Depth-Anything-V2-Small-Metric-Indoor-hf"
 _OUT_PATH = Path("models/depth/depth_anything_v2_small.onnx")
 _INPUT_SIZE = (518, 518)
 

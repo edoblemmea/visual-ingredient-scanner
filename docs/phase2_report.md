@@ -8,25 +8,25 @@
 
 ## 1. Project Overview
 
-The Visual Ingredient Scanner is an end-to-end mobile application that allows a user to point a phone camera at a fridge or kitchen counter, tap once, and receive a list of detected ingredients with estimated weights and three ranked recipe suggestions.
+The Visual Ingredient Scanner is an end-to-end application that allows a user to point a phone camera at a fridge or kitchen counter, tap once, and receive a list of detected ingredients with estimated weights and three ranked recipe suggestions.
 
-The system is designed to be **serverless and privacy-first**: the computer vision pipeline runs entirely on-device, with only two lightweight Gemini API calls touching the network — one for ingredient density lookup (cached after the first call) and one for recipe generation.
+The system is **serverless and privacy-first**: the computer vision pipeline runs entirely on-device, with only two lightweight Gemini API calls touching the network — one for ingredient density lookup (cached after the first call per class) and one for recipe generation.
 
-### Pipeline at a glance
+### Pipeline
 
 ```
 Camera frame
      │
      ▼
-① YOLO11s ──────────────► bounding boxes + class labels   (on-device)
+① YOLO11s ──────────────► bounding boxes + class labels    (on-device)
      │
      ▼
-② Depth Anything V2-S ──► per-pixel depth map in metres   (on-device)
+② Depth Anything V2-S ──► per-pixel depth map              (on-device)
      │
      ├── ③ Gemini density call ──► kg/m³ per class (cached) (cloud, once per new class)
      │
      ▼
-④ Pinhole model + shape heuristics ──► weight per item (g) (on-device)
+④ Pinhole model + shape heuristics ──► weight per item (g)  (on-device)
      │
      ▼
 ⑤ Gemini recipe call ──────────────► 3 ranked recipes JSON  (cloud, once per scan)
@@ -34,15 +34,16 @@ Camera frame
 
 ---
 
-## 2. Phase 2 Goals
+## 2. Phase 2 Status
 
 | Goal | Status |
 |---|---|
-| Fine-tune YOLO11s on food dataset | ⏳ Dataset prepared — training pending |
+| Fine-tune YOLO11s on food dataset | ✅ Done — mAP50-95 = **0.554** |
 | Export Depth Anything V2-S to ONNX | ✅ Done (`models/depth/`) |
 | Implement full 5-stage Python pipeline | ✅ Done (`pipeline/`) |
 | Build working Gradio laptop demo | ✅ Done (`prototype/app.py`) |
-| Preliminary mAP, depth δ₁, weight MAPE metrics | ⏳ Pending trained model |
+| Detection metrics (mAP) | ✅ Recorded — see §6 |
+| Weight estimation functional | ✅ Produces plausible gram estimates |
 | Phase 2 report | ✅ This document |
 
 ---
@@ -51,7 +52,7 @@ Camera frame
 
 ### 3.1 Strategy
 
-No single public dataset covers all target food classes with sufficient instances. We merged four complementary Roboflow Universe datasets into a single Roboflow project, applying class renames to ensure consistent naming across all pipeline stages.
+No single public dataset covers all target food classes with sufficient instances. We merged four complementary Roboflow Universe datasets, applying class renames to ensure consistent naming across all pipeline stages.
 
 ### 3.2 Source datasets
 
@@ -59,68 +60,30 @@ No single public dataset covers all target food classes with sufficient instance
 |---|---|---|
 | Ingredient Detection | `yasxhed/ingredient-detection-unorginazed-data` | Core fresh produce, proteins, dairy |
 | Veggies and Fruits Balanced | `veggies-and-fruits-balanced-0g1ss` | Fruits, peach, lettuce, exotic fruits |
-| Vegetables Dataset | `vegetables-g9p5a` | Zucchini (via vegetable marrow), beet, cauliflower, celery |
-| Groceries | `groceries-mts9o` | Packaged goods: milk, cereal, pasta, chocolate, oil, juice, etc. |
+| Vegetables Dataset | `vegetables-g9p5a` | Zucchini, beet, cauliflower, celery |
+| Groceries | `groceries-mts9o` | Packaged goods: milk, cereal, pasta, oil, juice |
 
-### 3.3 Class rename mapping applied in Roboflow
+### 3.3 Class balance and capping
 
-| Original name | Renamed to | Dataset |
-|---|---|---|
-| `Salad` | `lettuce` | veggies-and-fruits |
-| `Bell pepper` / `Bell Pepper` | `pepper` | veggies-and-fruits, vegetables |
-| `Common fig` | `fig` | veggies-and-fruits |
-| `vegetable marrow` | `zucchini` | vegetables |
-| `brus capusta` | `brussels_sprouts` | vegetables |
-| `cayliflower` | `cauliflower` | vegetables |
-| `rediska` | `radish` | vegetables |
-| `redka` | `radish` | vegetables |
-| `fasol` | `beans` | vegetables |
-| `chilli` / `hot pepper` | `chili` | vegetables |
-| `salad` | `lettuce` | vegetables |
-| `mayonaise` | `mayonnaise` | ingredient-detection |
-| `humus` | `hummus` | ingredient-detection |
-| `green beans` | `green_beans` | ingredient-detection |
-| `goat_cheese` / `mozzarella cheese` | `cheese` | ingredient-detection |
-| `cereal` | `cereal` | groceries |
-| `milk` | `milk` | groceries |
-| `pasta` | `pasta` | groceries |
+After merging, dominant classes (e.g., orange: 11,085 instances) were capped at **2,000 instances** using an instance-count–based deletion strategy (images with the most instances of the overrepresented class deleted first) to prevent class imbalance from biasing training.
 
-### 3.4 Classes excluded
+### 3.4 Final class list — 68 classes
 
-| Class | Reason |
-|---|---|
-| `Winter melon` | Only 74 instances — below threshold |
-| `banana_pacche` | Ambiguous class definition |
-| `squash-patisson` | Patty pan squash, mistaken for zucchini |
-| `Burger` | Not a raw ingredient (5 instances) |
-| `Lettuce` (capital L) | Only 1 instance |
-| `meat` | Too generic |
-| `bittergourd`, `chayote` | Uncommon in western kitchens |
-| `cake`, `candy`, `chips`, `spices` | Not useful as recipe ingredients |
+**Fruits (22):** apple, avocado, banana, blackberries, blueberries, cantaloupe, coconut, fig, grapes, grapefruit, kiwi, lemon, lime, mango, orange, peach, pear, pineapple, pomegranate, raspberries, strawberries, watermelon
 
-### 3.5 Final class list — 68 classes
+**Vegetables (28):** artichoke, beet, broccoli, brussels_sprouts, cabbage, carrot, cauliflower, celery, chili, corn, cucumber, eggplant, garlic, ginger, green_beans, lettuce, mushrooms, okra, onion, peas, pepper, potato, pumpkin, radish, spinach, sweet_potato, tomato, zucchini
 
-**Fruits (22):**  
-apple, avocado, banana, blackberries, blueberries, cantaloupe, coconut, fig, grapes, grapefruit, kiwi, lemon, lime, mango, orange, peach, pear, pineapple, pomegranate, raspberries, strawberries, watermelon
+**Proteins & dairy (12):** beef, butter, cheese, chicken, egg, fish, ham, heavy_cream, pork, shrimp, tofu, yogurt
 
-**Vegetables (28):**  
-artichoke, beet, broccoli, brussels_sprouts, cabbage, carrot, cauliflower, celery, chili, corn, cucumber, eggplant, garlic, ginger, green_beans, lettuce, mushrooms, okra, onion, peas, pepper, potato, pumpkin, radish, spinach, sweet_potato, tomato, zucchini
+**Pantry & packaged (21):** bread, cereal, chocolate, coffee, flour, honey, hummus, jam, juice, mayonnaise, milk, nuts, oil, pasta, rice, soda, sugar, tea, tomato_sauce, vinegar, water
 
-**Proteins & dairy (12):**  
-beef, butter, cheese, chicken, egg, fish, ham, heavy_cream, pork, shrimp, tofu, yogurt
-
-**Pantry & packaged (21):**  
-bread, cereal, chocolate, coffee, flour, honey, hummus, jam, juice, mayonnaise, milk, nuts, oil, pasta, rice, soda, sugar, tea, tomato_sauce, vinegar, water
-
-### 3.6 Dataset split
-
-Roboflow automatically splits the merged dataset as follows:
+### 3.5 Dataset split
 
 | Split | Proportion | Use |
 |---|---|---|
-| Train | 70% | YOLO fine-tuning |
-| Validation | 20% | Loss monitoring during training |
-| Test | 10% | Final mAP evaluation (held-out) |
+| Train | 70 % | YOLO fine-tuning |
+| Validation | 20 % | Loss monitoring |
+| Test | 10 % | Final mAP evaluation (held-out) |
 
 ---
 
@@ -133,7 +96,7 @@ Roboflow automatically splits the merged dataset as follows:
 | Architecture | Ultralytics YOLO11, small variant |
 | Parameters | ~9.4 M |
 | Base training | COCO (80 classes) |
-| Fine-tuning | Food dataset (68 classes, see §3) |
+| Fine-tuning | Food dataset, 68 classes, 25 epochs on Kaggle T4 GPU |
 | Export (Android) | INT8 TFLite via `ultralytics export format=tflite int8=True` |
 | Export (iOS) | CoreML via `ultralytics export format=coreml` |
 
@@ -143,49 +106,48 @@ YOLO11s was chosen over YOLO11n (accuracy too low) and YOLO11m (too large for on
 
 | Property | Value |
 |---|---|
-| Checkpoint | `depth-anything/Depth-Anything-V2-Small` (metric indoor, Hypersim fine-tune) |
-| Licence | Apache 2.0 — the only variant suitable for academic/commercial deployment |
-| Output | Per-pixel depth in metres |
+| Checkpoint | `depth-anything/Depth-Anything-V2-Small` (Apache 2.0) |
 | Export | ONNX via `torch.onnx.export`, opset 17 |
-| Runtime | `onnxruntime` CPU (laptop), `onnxruntime_flutter` (mobile) |
-| Fine-tuning | None — pretrained metric-indoor checkpoint used as-is |
+| Runtime | `onnxruntime` CPU |
+| Fine-tuning | None — pretrained checkpoint used as-is |
+
+**Depth calibration note:** The exported checkpoint is the relative-depth variant, which outputs unitless disparity values rather than metric metres. In the Python prototype, the depth map is normalised in two steps: (1) global min-max mapped to the [0.35 m, 3.0 m] indoor range; (2) the depth map is then rescaled so the median depth across all detected food bounding boxes equals 0.5 m — anchoring to the typical phone-to-counter distance for kitchen photography. This produces plausible weight estimates without requiring a recalibrated metric export. The proper fix (exporting from `depth-anything/Depth-Anything-V2-Small-Metric-Indoor-hf`) is planned before Phase 3.
 
 V2-Base and V2-Large were excluded due to CC-BY-NC licence restrictions.
 
-### 4.3 Stage ③ — Density Lookup: Gemini 2.0 Flash Lite
+### 4.3 Stage ③ — Density Lookup: Gemini API
 
-- Called **once per scan** for any class whose density is not already cached
-- All new classes are batched into a single API call
+- Model: `gemini-1.5-flash` (via `google-genai` SDK ≥ 1.0)
+- Called **once per scan** for any class not already cached
+- All new classes batched into a single API call
 - Results cached in `data/density_cache.json`; never re-queried for cached classes
-- Fallback to `data/density_fallback.json` (68 static entries) when API is unavailable
+- Static fallback in `data/density_fallback.json` (68 entries) used when API is unavailable
 
 ### 4.4 Stage ④ — Weight Estimation: Pinhole Model + Shape Heuristics
-
-Real-world dimensions are derived from the bounding box and depth:
 
 ```
 real_width  = (bbox_width_px  / focal_length_px) × depth_m
 real_height = (bbox_height_px / focal_length_px) × depth_m
 ```
 
-Volume is estimated using per-class shape heuristics:
+Volume estimated using per-class shape heuristics:
 
 | Shape | Classes (examples) | Formula |
 |---|---|---|
-| Sphere | apple, orange, tomato, egg, onion... | `V = (4/3)π(d/2)³`, d = min(w, h) |
-| Cylinder | banana, carrot, cucumber, oil, soda... | `V = π(w/2)²·h` |
-| Box | bread, cheese, chicken, cereal... | `V = w·h·max(w,h)·0.5` |
+| Sphere | apple, orange, tomato, onion, egg | `V = (4/3)π(d/2)³`, d = min(w, h) |
+| Cylinder | banana, carrot, cucumber, oil bottle | `V = π(w/2)²·h` |
+| Box | bread, cheese, chicken, cereal box | `V = w · h · max(w,h) · 0.5` |
 
-`focal_length_px` is read from EXIF `FocalLengthIn35mmFilm`; falls back to `image_width × 0.8`.
-
+`focal_length_px` is read from EXIF `FocalLengthIn35mmFilm`; falls back to `image_width × 0.8`.  
 `weight_g = volume_m³ × density_kg_m³ × 1000`
 
-### 4.5 Stage ⑤ — Recipe Generation: Gemini 2.0 Flash Lite
+### 4.5 Stage ⑤ — Recipe Generation: Gemini API
 
+- Model: `gemini-1.5-flash`
 - Called once per scan after weight estimation
-- Input: detected ingredients with estimated weights in grams
-- Output: JSON array of 3 ranked recipes, each with name, ingredients used, steps, and servings
-- Model adapts recipe quantities to the detected amounts
+- Input: detected ingredients + estimated weights in grams
+- Output: JSON array of 3 ranked recipes (name, ingredients used, steps, servings)
+- Graceful fallback message shown in UI if API is unavailable
 
 ---
 
@@ -196,16 +158,16 @@ Volume is estimated using per-class shape heuristics:
 ```
 pipeline/
 ├── detect.py       YOLO11s inference wrapper
-├── depth.py        Depth Anything V2-S ONNX wrapper
+├── depth.py        Depth Anything V2-S ONNX wrapper + depth calibration
 ├── density.py      Gemini density call + local cache
-├── weight.py       Pinhole model + shape heuristics
+├── weight.py       Pinhole model + shape heuristics + food-depth anchoring
 ├── recipe.py       Gemini recipe generation
 └── pipeline.py     End-to-end orchestration
 
 training/
-├── train_yolo.py         YOLO11s fine-tuning (Google Colab T4)
-├── export_yolo.py        TFLite + CoreML export
-└── export_depth_onnx.py  Depth Anything V2-S → ONNX
+├── train_yolo.py              YOLO11s fine-tuning script
+├── export_yolo.py             TFLite + CoreML export
+└── export_depth_onnx.py       Depth Anything V2-S → ONNX
 
 prototype/
 └── app.py          Gradio laptop demo
@@ -213,78 +175,115 @@ prototype/
 data/
 ├── classes.yaml          68 classes with shape hints and densities
 ├── density_fallback.json Static density table (68 entries)
-└── density_cache.json    Runtime Gemini density cache
+└── density_cache.json    Runtime Gemini density cache (auto-updated)
 
 models/
+├── yolo/
+│   └── food_detector.pt  Fine-tuned YOLO11s checkpoint (19.2 MB)
 └── depth/
-    └── depth_anything_v2_small.onnx  ✅ present
+    └── depth_anything_v2_small.onnx
 
 notebooks/
-└── train_yolo_colab.ipynb  Step-by-step Colab training notebook
+└── train_yolo_kaggle.ipynb  Kaggle training notebook (T4 GPU)
 ```
 
-### 5.2 Running the pipeline
+### 5.2 Running the demo
 
 ```bash
 # Activate virtual environment
-venv\Scripts\activate        # Windows
-source venv/bin/activate     # macOS/Linux
+venv\Scripts\activate          # Windows
+source venv/bin/activate       # macOS/Linux
 
-# Set Gemini API key
+# Add Gemini API key to .env
 echo GEMINI_API_KEY=your_key > .env
-
-# Run full pipeline on an image
-python -m pipeline.pipeline --image path/to/fridge.jpg
 
 # Launch Gradio demo
 python prototype/app.py
+# → open http://127.0.0.1:7860
 ```
 
-### 5.3 Training (Google Colab)
+### 5.3 Training
 
-Training is executed on Google Colab with a T4 GPU using `notebooks/train_yolo_colab.ipynb`. The notebook covers:
+Training was executed on **Kaggle** with a T4 GPU using `notebooks/train_yolo_kaggle.ipynb`:
 
-1. Installing `ultralytics` and `roboflow`
-2. Verifying GPU availability
-3. Downloading the merged dataset from Roboflow
-4. Training YOLO11s for 50 epochs (cosine LR, built-in augmentations, batch=16, imgsz=640)
-5. Evaluating mAP50-95 on the held-out test split
-6. Exporting to INT8 TFLite and CoreML
-7. Saving all outputs to Google Drive
+1. Roboflow API key loaded from Kaggle Secrets
+2. Merged dataset downloaded from Roboflow (version 2)
+3. YOLO11s fine-tuned for **25 epochs** (cosine LR, built-in augmentations, batch=16, imgsz=640)
+4. Best checkpoint saved to `/kaggle/working/outputs/best.pt`
+5. Model downloaded and placed at `models/yolo/food_detector.pt`
+
+Total training time: **~3.26 hours** (11,754 seconds). Google Colab was initially used but abandoned due to unreliable Drive mounting and ~20 min/epoch training speed. Kaggle provided ~8 min/epoch with persistent output storage.
 
 ---
 
-## 6. Evaluation Targets
+## 6. Results
 
-| Stage | Metric | Target | Status |
-|---|---|---|---|
-| Detection | mAP50-95 on food test set | > 40% | ⏳ Pending training |
-| Depth | δ₁ accuracy (% pixels within 25% of GT) | > 0.75 | ⏳ Pending eval |
-| Weight estimation | MAPE on held-out items | < 35% | ⏳ Pending eval |
-| End-to-end latency (phone) | Capture → results | < 5 s | Phase 3 |
+### 6.1 Detection — YOLO11s mAP
+
+| Metric | Value | Target |
+|---|---|---|
+| **mAP50-95** | **0.554** | > 0.40 ✅ |
+| mAP50 | 0.744 | — |
+| Precision | 0.745 | — |
+| Recall | 0.699 | — |
+
+The model comfortably exceeds the 40% mAP50-95 target. Training converged smoothly over 25 epochs, with both box loss and class loss decreasing consistently on validation (see training curves in `docs/Download.png`).
+
+![Training curves](Download.png)
+
+**Per-class highlights (selected):**
+
+| Class | mAP50-95 (approx.) | Notes |
+|---|---|---|
+| ginger | 0.881 | High — very distinctive appearance |
+| blackberries | 0.841 | High — unique texture |
+| jam | 0.834 | High — consistent label appearance |
+| orange | 0.065 | Low — few validation images after capping |
+| pomegranate | 0.082 | Low — small validation set |
+| garlic | 0.396 | Moderate — visually similar to onion |
+
+Packaged goods (pasta, oil) were frequently missed — varying packaging appearance makes them harder to detect reliably with 25 training epochs.
+
+### 6.2 Weight Estimation
+
+Weight estimation is functional and produces plausible gram estimates for close-up kitchen photography (~50 cm phone-to-food distance). Absolute accuracy is limited by the lack of a calibrated metric depth model. Observed results on a test image (lemon, tomato, apple, pomegranate, onion):
+
+| Item | Estimated weight | Typical real weight |
+|---|---|---|
+| lemon | ~150–250 g | ~100 g |
+| onion | ~150–200 g | ~150 g |
+| pomegranate | ~350–500 g | ~300 g |
+| tomato | ~400–700 g | ~150–250 g |
+| apple | ~500–900 g | ~180–250 g |
+
+Rounder items (lemon, onion, pomegranate) are estimated more accurately than items with loose bounding boxes (tomato, apple). A proper metric depth export is expected to reduce the remaining error significantly.
+
+### 6.3 Depth Estimation
+
+The δ₁ accuracy metric (% of pixels within 25% of ground truth) has not been evaluated quantitatively at this stage, as it requires a paired RGB+depth ground-truth dataset. Qualitative inspection of the depth maps shows correct relative ordering (closer objects lighter, farther objects darker) with plausible spatial structure for kitchen scenes.
 
 ---
 
 ## 7. Known Limitations
 
-1. **Weight estimation accuracy** — The ±30% target is achievable but not guaranteed for all shapes. Packaged goods (boxes, cartons) are harder to estimate than round fruit due to the 2D projection factor. This is documented as an expected limitation.
+1. **Depth model not metric** — The current ONNX export uses the relative-depth checkpoint. Depth values are calibrated via a two-step heuristic (scene normalisation + food-median anchoring at 0.5 m). A metric export is planned for Phase 3.
 
-2. **Low-instance classes** — `mayonnaise` (42 instances) and `hummus` (109 instances) are below the ideal threshold of 150+. Detection accuracy for these classes will be lower than for well-represented classes. Additional training data can be added before Phase 3.
+2. **Weight accuracy varies by item shape** — Round items are estimated within ×2 of actual weight. Items with loose bounding boxes or irregular shapes may be estimated at ×3–5. The ±30% target requires a metric depth model and tighter bbox crops.
 
-3. **Depth model on non-indoor scenes** — Depth Anything V2-S is fine-tuned on the Hypersim indoor dataset. Performance may degrade on outdoor or studio-lit kitchen photos. Validated on CPU only at this stage.
+3. **Packaged goods detection is weak** — Classes like pasta, oil, and juice are rarely detected with sufficient confidence. Packaging varies widely; more training data or a dedicated packaging detector would be needed.
 
-4. **Gemini API dependency** — Stages ③ and ⑤ require a network connection and a valid API key. A static fallback (`density_fallback.json`) is in place for density lookups; recipe generation is unavailable offline.
+4. **Gemini free tier quota** — `gemini-2.0-flash-lite` and `gemini-2.0-flash` show `limit: 0` on the free tier in some Google account configurations. Migrated to `gemini-1.5-flash` and added full graceful fallback. Density estimation already works entirely offline via `density_fallback.json`.
 
-5. **ONNX operator compatibility** — The Depth Anything V2-S ONNX export uses opset 17 with ViT-based operators. Compatibility with `onnxruntime_flutter` on mobile will be validated in Phase 3. If issues arise, INT8 quantisation via `onnxruntime.quantization` will be applied as a fallback.
+5. **Low-instance classes** — `mayonnaise` (42 instances) and `hummus` (109 instances) are below ideal threshold. Detection recall for these classes is lower than average.
 
 ---
 
 ## 8. Next Steps (Phase 3 — due 15–17 June 2026)
 
-- Complete YOLO11s training on Colab and record final mAP metrics
-- Run `evaluation/eval_depth.py` and `evaluation/eval_weight.py` against test data
-- Build Flutter mobile app (all screens and services in `mobile/`)
+- Re-export Depth Anything V2-S from metric indoor checkpoint and remove heuristic depth calibration
+- Run `evaluation/eval_weight.py` with the metric model to measure MAPE on held-out items
+- Build Flutter mobile app (screens and services in `mobile/`)
 - Validate ONNX model on Android via `onnxruntime_flutter`
-- Export trained YOLO11s to TFLite INT8 and bundle into Flutter app
-- Full end-to-end latency measurement on a physical phone
-- Final report, presentation slides, and demo video
+- Export trained YOLO11s to TFLite INT8 and integrate into Flutter app
+- Measure end-to-end latency on a physical Android phone (target < 5 s)
+- Final report, presentation slides, and live demo video

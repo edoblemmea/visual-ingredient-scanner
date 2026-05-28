@@ -9,7 +9,7 @@ venv/
 .env
 
 # Model weights (too large for git)
-models/yolo/*.pt
+#models/yolo/*.pt
 models/yolo/*.tflite
 models/yolo/*.mlmodel
 models/yolo/*.mlpackage
