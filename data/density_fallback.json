@@ -1,5 +1,6 @@
 {
   "apple":         820,
+  "cherry":       1000,
   "avocado":       800,
   "banana":        770,
   "blackberries":  700,
@@ -49,6 +50,7 @@
   "spinach":          200,
   "sweet_potato":     760,
   "tomato":          1000,
+  "turnip":           700,
   "zucchini":         620,
 
   "beef":        1050,
@@ -64,6 +66,7 @@
   "tofu":        1020,
   "yogurt":      1050,
 
+  "canned_beans":  800,
   "bread":        280,
   "cereal":       200,
   "chocolate":   1300,

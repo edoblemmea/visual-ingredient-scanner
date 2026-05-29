@@ -12,6 +12,7 @@ classes:
   - { name: blueberries,  shape_hint: sphere,   typical_density_kg_m3: 700  }
   - { name: cantaloupe,   shape_hint: sphere,   typical_density_kg_m3: 900  }
   - { name: coconut,      shape_hint: sphere,   typical_density_kg_m3: 700  }
+  - { name: cherry,       shape_hint: sphere,   typical_density_kg_m3: 1000 }
   - { name: fig,          shape_hint: sphere,   typical_density_kg_m3: 800  }
   - { name: grapes,       shape_hint: sphere,   typical_density_kg_m3: 700  }
   - { name: grapefruit,   shape_hint: sphere,   typical_density_kg_m3: 840  }
@@ -56,6 +57,7 @@ classes:
   - { name: spinach,         shape_hint: box,      typical_density_kg_m3: 200  }
   - { name: sweet_potato,    shape_hint: sphere,   typical_density_kg_m3: 760  }
   - { name: tomato,          shape_hint: sphere,   typical_density_kg_m3: 1000 }
+  - { name: turnip,          shape_hint: sphere,   typical_density_kg_m3: 700  }
   - { name: zucchini,        shape_hint: cylinder, typical_density_kg_m3: 620  }
 
   # ── Proteins & dairy ──────────────────────────────────────────────────────
@@ -73,6 +75,7 @@ classes:
   - { name: yogurt,       shape_hint: cylinder, typical_density_kg_m3: 1050 }
 
   # ── Pantry & packaged ─────────────────────────────────────────────────────
+  - { name: canned_beans, shape_hint: cylinder, typical_density_kg_m3: 800  }
   - { name: bread,        shape_hint: box,      typical_density_kg_m3: 280  }
   - { name: cereal,       shape_hint: box,      typical_density_kg_m3: 200  }
   - { name: chocolate,    shape_hint: box,      typical_density_kg_m3: 1300 }

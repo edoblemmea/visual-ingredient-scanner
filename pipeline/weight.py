@@ -16,19 +16,19 @@ _DEFAULT_FOCAL_RATIO = 0.8  # focal_px = image_width_px * 0.8 when EXIF is absen
 _SPHERE_CLASSES = {
     # fruits
     "apple", "avocado", "blackberries", "blueberries", "cantaloupe", "coconut",
-    "fig", "grapes", "grapefruit", "kiwi", "lemon", "lime", "mango", "orange",
+    "cherry", "fig", "grapes", "grapefruit", "kiwi", "lemon", "lime", "mango", "orange",
     "peach", "pear", "pomegranate", "raspberries", "strawberries", "watermelon",
     # vegetables
     "artichoke", "beet", "brussels_sprouts", "cabbage", "cauliflower", "egg",
     "garlic", "mushrooms", "onion", "peas", "potato", "pumpkin", "radish",
-    "sweet_potato", "tomato",
+    "sweet_potato", "tomato", "turnip",
 }
 _CYLINDER_CLASSES = {
     # fruits & vegetables
     "banana", "carrot", "celery", "chili", "corn", "cucumber", "eggplant",
     "green_beans", "okra", "pineapple", "zucchini",
     # dairy & packaged
-    "heavy_cream", "honey", "hummus", "jam", "juice", "mayonnaise",
+    "canned_beans", "heavy_cream", "honey", "hummus", "jam", "juice", "mayonnaise",
     "oil", "soda", "tomato_sauce", "vinegar", "water", "yogurt",
 }
 # everything else → box
