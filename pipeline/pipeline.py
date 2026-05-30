@@ -3,6 +3,7 @@
 from __future__ import annotations
 from pathlib import Path
 
+import numpy as np
 from PIL import Image
 
 from .detect import Detector
@@ -17,7 +18,7 @@ _DEFAULT_DEPTH = Path("models/depth/depth_anything_v2_small.onnx")
 
 
 def run(
-    image_path: str | Path,
+    image_path: str | Path | Image.Image,
     yolo_model: str | Path = _DEFAULT_YOLO,
     depth_model: str | Path = _DEFAULT_DEPTH,
 ) -> dict:
@@ -29,7 +30,7 @@ def run(
     detector = Detector(yolo_model)
     detections = detector.detect(image)
     if not detections:
-        return {"detections": [], "weights": {}, "recipes": []}
+        return {"detections": [], "weights": {}, "recipes": [], "depth_map": None}
 
     depth_estimator = DepthEstimator(depth_model)
     depth_map = depth_estimator.estimate(image)
@@ -52,13 +53,19 @@ def run(
                 "class": w.detection.class_name,
                 "confidence": round(w.detection.confidence, 3),
                 "bbox": w.detection.bbox_xyxy,
+                "shape": w.shape,
                 "depth_m": round(w.depth_m, 3),
+                "real_width_m": round(w.real_width_m, 4),
+                "real_height_m": round(w.real_height_m, 4),
+                "volume_m3": round(w.volume_m3, 8),
+                "density_kg_m3": round(w.density_kg_m3, 1),
                 "weight_g": round(w.weight_g, 1),
             }
             for w in weighted
         ],
         "weights": {k: round(v, 1) for k, v in ingredient_weights.items()},
         "recipes": recipes,
+        "depth_map": depth_map,  # np.ndarray (H, W) in metres; excluded from JSON output below
     }
 
 
@@ -73,4 +80,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     result = run(args.image, args.yolo, args.depth)
-    print(json.dumps(result, indent=2))
+    result_json = {k: v for k, v in result.items() if k != "depth_map"}
+    print(json.dumps(result_json, indent=2))
+
+    if result["depth_map"] is not None:
+        dm = result["depth_map"]
+        print(f"\ndepth_map: shape={dm.shape}, min={dm.min():.3f}m, max={dm.max():.3f}m, "
+              f"median={float(np.median(dm)):.3f}m")

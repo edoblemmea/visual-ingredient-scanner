@@ -71,17 +71,13 @@ def _shape_for_class(class_name: str) -> str:
 @dataclass
 class WeightedDetection:
     detection: Detection
+    shape: str
     depth_m: float
     real_width_m: float
     real_height_m: float
     volume_m3: float
     density_kg_m3: float
     weight_g: float
-
-
-# Assumed median distance from phone to food for a typical kitchen photo.
-# Used to anchor the relative depth scale to actual metres.
-_TARGET_FOOD_DEPTH_M = 0.50
 
 
 def estimate_weights(
@@ -92,19 +88,8 @@ def estimate_weights(
 ) -> list[WeightedDetection]:
     focal_px = _get_focal_length_px(image)
 
-    # The ONNX depth model outputs relative (not metric) depth.
-    # Scale the whole depth map so the median depth across all food bboxes = 0.5 m,
-    # anchoring to the typical phone-to-counter distance in a kitchen photo.
-    food_medians: list[float] = []
-    for det in detections:
-        x1, y1, x2, y2 = det.bbox_xyxy
-        roi = depth_map[y1:y2, x1:x2]
-        if roi.size > 0:
-            food_medians.append(float(np.median(roi)))
-    if food_medians:
-        median_scene_depth = float(np.median(food_medians))
-        if median_scene_depth > 0:
-            depth_map = depth_map * (_TARGET_FOOD_DEPTH_M / median_scene_depth)
+    # depth_map is already in metres (normalised by depth.py to [0.35, 3.0] m).
+    # Do NOT re-anchor here — a second rescaling would corrupt depth.py's output.
 
     results: list[WeightedDetection] = []
 
@@ -129,6 +114,7 @@ def estimate_weights(
 
         results.append(WeightedDetection(
             detection=det,
+            shape=shape,
             depth_m=depth_m,
             real_width_m=real_w,
             real_height_m=real_h,
