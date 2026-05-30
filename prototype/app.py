@@ -5,7 +5,6 @@ Then open http://localhost:7860 in a browser and upload a kitchen photo.
 """
 
 from __future__ import annotations
-import json
 import sys
 from pathlib import Path
 
@@ -17,8 +16,15 @@ from PIL import Image, ImageDraw
 from pipeline.pipeline import run
 
 
-_YOLO_MODEL = "models/yolo/food_detector.pt"
-_DEPTH_MODEL = "models/depth/depth_anything_v2_small.onnx"
+_REPO_ROOT = Path(__file__).parent.parent
+
+
+def _scan_models(subdir: str, ext: str) -> list[str]:
+    """Return repo-root-relative paths for all model files in models/<subdir>/."""
+    folder = _REPO_ROOT / "models" / subdir
+    if not folder.exists():
+        return []
+    return sorted(str(p.relative_to(_REPO_ROOT)) for p in folder.glob(f"*.{ext}"))
 
 
 def _annotate(image: Image.Image, detections: list[dict]) -> Image.Image:
@@ -31,11 +37,11 @@ def _annotate(image: Image.Image, detections: list[dict]) -> Image.Image:
     return image
 
 
-def scan(image: Image.Image) -> tuple[Image.Image, str, str]:
+def scan(image: Image.Image, yolo_model: str, depth_model: str) -> tuple:
     if image is None:
         return None, "No image provided.", ""
 
-    result = run(image, _YOLO_MODEL, _DEPTH_MODEL)
+    result = run(image, yolo_model, depth_model)
 
     annotated = _annotate(image.copy(), result["detections"])
 
@@ -51,8 +57,25 @@ def scan(image: Image.Image) -> tuple[Image.Image, str, str]:
     return annotated, weights_text, recipes_text or "No recipes generated."
 
 
+_yolo_models = _scan_models("yolo", "pt")
+_depth_models = _scan_models("depth", "onnx")
+
 with gr.Blocks(title="Visual Ingredient Scanner") as demo:
     gr.Markdown("# Visual Ingredient Scanner\nUpload a photo of your fridge or kitchen counter.")
+
+    with gr.Row():
+        yolo_dd = gr.Dropdown(
+            choices=_yolo_models,
+            value=_yolo_models[0] if _yolo_models else None,
+            label="YOLO model",
+            info="All .pt files in models/yolo/ — hot-swap without restart",
+        )
+        depth_dd = gr.Dropdown(
+            choices=_depth_models,
+            value=_depth_models[0] if _depth_models else None,
+            label="Depth model",
+            info="All .onnx files in models/depth/ — hot-swap without restart",
+        )
 
     with gr.Row():
         inp = gr.Image(type="pil", label="Input image")
@@ -64,7 +87,11 @@ with gr.Blocks(title="Visual Ingredient Scanner") as demo:
         out_weights = gr.Textbox(label="Detected ingredients & weights", lines=8)
         out_recipes = gr.Markdown(label="Recipe suggestions")
 
-    btn.click(fn=scan, inputs=inp, outputs=[out_img, out_weights, out_recipes])
+    btn.click(
+        fn=scan,
+        inputs=[inp, yolo_dd, depth_dd],
+        outputs=[out_img, out_weights, out_recipes],
+    )
 
 if __name__ == "__main__":
     demo.launch()
