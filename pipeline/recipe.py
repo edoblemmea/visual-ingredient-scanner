@@ -9,6 +9,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+_GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.1-flash-lite")
+
 _PROMPT_TEMPLATE = """\
 You are a helpful recipe assistant. Given the following detected ingredients and their \
 estimated weights, suggest exactly 3 ranked recipes that make good use of the available \
@@ -45,7 +47,7 @@ def generate_recipes(ingredients: dict[str, float]) -> list[dict]:
     try:
         client = genai.Client(api_key=api_key)
         response = client.models.generate_content(
-            model="gemini-3.1-flash-lite",
+            model=_GEMINI_MODEL,
             contents=prompt,
         )
         text = response.text.strip()

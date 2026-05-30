@@ -13,6 +13,8 @@ load_dotenv()
 _CACHE_PATH = Path("data/density_cache.json")
 _FALLBACK_PATH = Path("data/density_fallback.json")
 
+_GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.1-flash-lite")
+
 _PROMPT_TEMPLATE = (
     "Return only a JSON object mapping each food class name to its average bulk density "
     "in kg/m³. Classes: {classes}. Include packaging weight for packaged goods. "
@@ -48,7 +50,7 @@ def get_densities(class_names: list[str]) -> dict[str, float]:
                 client = genai.Client(api_key=api_key)
                 prompt = _PROMPT_TEMPLATE.format(classes=", ".join(missing))
                 response = client.models.generate_content(
-                    model="gemini-1.5-flash",
+                    model=_GEMINI_MODEL,
                     contents=prompt,
                 )
                 text = response.text.strip()
