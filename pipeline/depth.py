@@ -35,13 +35,26 @@ _M3D_PAD = (123.675, 116.28, 103.53)
 _M3D_CANONICAL_FOCAL = 1000.0  # focal the model was canonicalised to during training
 
 
+def _build_session(model_path: str | Path) -> ort.InferenceSession:
+    """Create an ORT session, retrying with optimizations off.
+
+    Some fp16 exports trip ORT's layernorm-fusion pass during initialization;
+    disabling graph optimizations sidesteps that bug at a small speed cost.
+    """
+    try:
+        return ort.InferenceSession(str(model_path), providers=["CPUExecutionProvider"])
+    except Exception:
+        opts = ort.SessionOptions()
+        opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_DISABLE_ALL
+        return ort.InferenceSession(str(model_path), sess_options=opts, providers=["CPUExecutionProvider"])
+
+
 class DepthEstimator:
     def __init__(self, model_path: str | Path) -> None:
-        self.session = ort.InferenceSession(
-            str(model_path),
-            providers=["CPUExecutionProvider"],
-        )
-        self._input_name = self.session.get_inputs()[0].name
+        self.session = _build_session(model_path)
+        input_meta = self.session.get_inputs()[0]
+        self._input_name = input_meta.name
+        self._input_dtype = np.float16 if "float16" in input_meta.type else np.float32
         out_names = {o.name for o in self.session.get_outputs()}
         self._is_metric3d = "predicted_normal" in out_names or len(out_names) > 1
 
@@ -56,7 +69,7 @@ class DepthEstimator:
         resized = image.resize(_DA_INPUT_SIZE, Image.BILINEAR).convert("RGB")
         arr = np.array(resized, dtype=np.float32) / 255.0
         arr = (arr - _DA_MEAN) / _DA_STD
-        tensor = arr.transpose(2, 0, 1)[np.newaxis]  # (1, 3, H, W)
+        tensor = arr.transpose(2, 0, 1)[np.newaxis].astype(self._input_dtype)  # (1, 3, H, W)
 
         depth = self.session.run(None, {self._input_name: tensor})[0]
         depth = np.squeeze(depth).astype(np.float32)
@@ -82,7 +95,7 @@ class DepthEstimator:
             cv2.BORDER_CONSTANT, value=_M3D_PAD,
         )
 
-        tensor = ((padded - _M3D_MEAN) / _M3D_STD).transpose(2, 0, 1)[np.newaxis]
+        tensor = ((padded - _M3D_MEAN) / _M3D_STD).transpose(2, 0, 1)[np.newaxis].astype(self._input_dtype)
         depth = self.session.run(["predicted_depth"], {self._input_name: tensor})[0]
         depth = np.squeeze(depth).astype(np.float32)
 
@@ -101,7 +114,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--image", required=True)
-    parser.add_argument("--model", default="models/depth/metric3d-vit-small.onnx")
+    parser.add_argument("--model", default="models/depth/metric3d-vit-small-fp16.onnx")
     parser.add_argument("--out", default="depth_output.npy")
     args = parser.parse_args()
 

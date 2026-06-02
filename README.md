@@ -3,7 +3,7 @@
 > Computer Vision · Master MEI FIB · UPC · Spring 2026
 > Team: Pol Plana · Emma Nájera · Houda El Fezzak
 
-Point a phone camera at a fridge or kitchen counter, tap once, and get a list of detected ingredients with estimated weights and three ranked recipe suggestions — all powered by an on-device CV pipeline with two lightweight Gemini API calls.
+Point a phone camera at a fridge or kitchen counter, tap once, and get a list of detected ingredients with estimated weights and three ranked recipe suggestions — all powered by an on-device CV pipeline with a single lightweight Gemini API call.
 
 ---
 
@@ -16,18 +16,20 @@ Camera frame
 ① YOLO11s ──────────────► bounding boxes + class labels   (on-device, ~20 MB TFLite)
      │
      ▼
-② Depth Anything V2-S ──► per-pixel depth map in metres   (on-device, ~98 MB ONNX)
+② Metric3D ViT-Small ───► metric depth map in metres      (on-device, ~75 MB fp16 ONNX)
      │
-     ├── ③ Gemini density call ──► kg/m³ per class (cached) (cloud, once per new class)
+     ├── ③ Static density table ──► kg/m³ per class         (on-device, data/food_densities.json)
      │
      ▼
-④ Pinhole model + shape heuristics ──► weight per item (g) (on-device Dart)
+④ Pinhole model + shape heuristics ──► weight per item (g) (on-device)
      │
      ▼
 ⑤ Gemini recipe call ──────────────► 3 ranked recipes JSON  (cloud, once per scan)
 ```
 
-Stages ①②④ run entirely on-device. Stages ③⑤ make a single Gemini 2.0 Flash Lite call each; the density result is cached locally so most scans only need one network call.
+Stages ①–④ run entirely on-device — including density lookup, which is now a static curated table rather than an API call. Only stage ⑤ (recipe generation) touches the network, with a single Gemini 2.0 Flash Lite call per scan.
+
+**Why Metric3D?** Absolute distance is what turns bounding-box pixels into real-world size. Earlier we used Depth Anything V2-S (metric-indoor), but that checkpoint was trained on room-scale scenes and is out-of-distribution for hand-held tabletop close-ups — it floors out around ~1 m and its absolute scale drifts with the background. Metric3D instead consumes the camera's **focal length** (from EXIF, or an `image_width × 0.8` fallback) through a canonical-camera transform, recovering true metric depth with no per-image calibration and no reference object. See [docs/phase2_report.md](docs/phase2_report.md) §4.2 for the full comparison and the one remaining limitation (featureless-background extreme close-ups).
 
 ---
 
@@ -42,26 +44,26 @@ visual-ingredient-scanner/
 │
 ├── data/
 │   ├── classes.yaml              ← unified food class list
-│   ├── density_cache.json        ← runtime-updated Gemini density cache
-│   └── density_fallback.json     ← static fallback densities (~50 classes)
+│   └── food_densities.json       ← static bulk densities, kg/m³ (109 classes)
 │
 ├── datasets/
 │   └── roboflow/                 ← Roboflow exports (gitignored)
 │
 ├── models/
-│   ├── yolo/
+│   ├── yolo/                     ← variant sub-folders (v11s/, v26m/)
 │   │   ├── food_detector.pt      ← fine-tuned YOLO11s checkpoint
 │   │   ├── food_detector.tflite  ← INT8 TFLite export (Android)
 │   │   └── food_detector.mlmodel ← CoreML export (iOS)
 │   └── depth/
-│       ├── depth_anything_v2_small.onnx
-│       └── depth_anything_v2_small.onnx.data
+│       ├── metric3d-vit-small-fp16.onnx  ← Metric3D, fp16 (~75 MB, default)
+│       ├── metric3d-vit-small.onnx       ← Metric3D, fp32 (~150 MB)
+│       └── depth_anything_v2_small.onnx  ← alternative (selectable)
 │
 ├── pipeline/                     ← Python CV pipeline (Phase 2)
 │   ├── detect.py                 ← YOLO11s inference wrapper
-│   ├── depth.py                  ← Depth Anything V2-S ONNX wrapper
+│   ├── depth.py                  ← Metric3D / Depth Anything ONNX wrapper (auto-detected)
 │   ├── weight.py                 ← pinhole model + shape heuristics
-│   ├── density.py                ← Gemini density call + local cache
+│   ├── density.py                ← static density lookup (food_densities.json)
 │   ├── recipe.py                 ← Gemini recipe generation
 │   └── pipeline.py               ← end-to-end orchestration
 │
@@ -92,7 +94,7 @@ visual-ingredient-scanner/
 │   │       └── recipe_service.dart
 │   └── assets/
 │       ├── models/
-│       └── density_cache.json
+│       └── food_densities.json
 │
 ├── docs/
 │   ├── phase1_definition.pdf
@@ -155,14 +157,17 @@ flutter run
 | Model | Size | Where |
 |---|---|---|
 | YOLO11s (base) | ~40 MB | download via `ultralytics` |
-| YOLO11s fine-tuned (`.pt`) | ~40 MB | `models/yolo/food_detector.pt` |
+| YOLO11s fine-tuned (`.pt`) | ~40 MB | `models/yolo/v11s/food_detector.pt` |
 | YOLO11s INT8 TFLite | ~20 MB | `models/yolo/food_detector.tflite` |
-| Depth Anything V2-S (ONNX) | ~98 MB | `models/depth/` (already present) |
+| **Metric3D ViT-Small fp16 (ONNX)** | **~75 MB** | `models/depth/metric3d-vit-small-fp16.onnx` (**default**) |
+| Metric3D ViT-Small fp32 (ONNX) | ~150 MB | `models/depth/metric3d-vit-small.onnx` |
+| Depth Anything V2-S (ONNX) | ~98 MB | `models/depth/` (alternative) |
 
-Model weights > 100 MB are gitignored. To set up locally:
+The depth stage auto-selects its preprocessing from the chosen ONNX, so any of the three can be picked from the prototype's dropdown. Model weights > 100 MB are gitignored. To set up locally:
 
-- **Depth Anything V2-S (ONNX):** download `depth_anything_v2_small.onnx` from [Hugging Face](https://huggingface.co/depth-anything/Depth-Anything-V2-Small) and place it in `models/depth/`.
-- **YOLO11s fine-tuned:** download `food_detector.pt` from the team's shared Google Drive (link in the course submission) and place it in `models/yolo/`.
+- **Metric3D ViT-Small (ONNX):** export/download from [Metric3D](https://github.com/YvanYin/Metric3D) (BSD-2) and place the `.onnx` in `models/depth/`. The fp16 build is the default for its smaller footprint; the fp32 build is available if your runtime rejects the fp16 graph.
+- **Depth Anything V2-S (ONNX):** export with `python training/export_depth_onnx.py` (metric-indoor checkpoint) into `models/depth/`.
+- **YOLO11s fine-tuned:** download `food_detector.pt` from the team's shared Google Drive (link in the course submission) and place it in `models/yolo/v11s/`.
 
 ---
 
@@ -192,9 +197,10 @@ Model weights > 100 MB are gitignored. To set up locally:
 ## Tech stack
 
 - **Detection:** [Ultralytics YOLO11s](https://docs.ultralytics.com/)
-- **Depth:** [Depth Anything V2 Small](https://github.com/DepthAnything/Depth-Anything-V2) (Apache 2.0, metric-indoor)
-- **LLM:** [Gemini 2.0 Flash Lite](https://ai.google.dev/) — density lookup + recipe generation
-- **Training:** PyTorch + Ultralytics on Google Colab (T4)
+- **Depth:** [Metric3D ViT-Small](https://github.com/YvanYin/Metric3D) (BSD-2, intrinsics-conditioned metric depth) — Depth Anything V2-S retained as an alternative
+- **Density:** static curated table (`data/food_densities.json`, 109 classes) — no API
+- **LLM:** [Gemini 2.0 Flash Lite](https://ai.google.dev/) — recipe generation only
+- **Training:** PyTorch + Ultralytics on Google Colab / Kaggle (T4)
 - **Dataset:** [Roboflow Universe](https://universe.roboflow.com/)
 - **Mobile:** Flutter 3.x with `tflite_flutter` + `onnxruntime_flutter`
 - **Prototype UI:** Gradio
@@ -204,4 +210,4 @@ Model weights > 100 MB are gitignored. To set up locally:
 ## License
 
 Academic project — Computer Vision course, MEI FIB UPC. Source code MIT.
-Model weights follow their respective upstream licences (Apache 2.0 for Depth Anything V2-S).
+Model weights follow their respective upstream licences (BSD-2 for Metric3D, Apache 2.0 for Depth Anything V2-S).

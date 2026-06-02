@@ -13,8 +13,8 @@ from .weight import estimate_weights
 from .recipe import generate_recipes
 
 
-_DEFAULT_YOLO = Path("models/yolo/food_detector.pt")
-_DEFAULT_DEPTH = Path("models/depth/depth_anything_v2_small.onnx")
+_DEFAULT_YOLO = Path("models/yolo/v11s/food_detector.pt")
+_DEFAULT_DEPTH = Path("models/depth/metric3d-vit-small-fp16.onnx")
 
 
 def run(

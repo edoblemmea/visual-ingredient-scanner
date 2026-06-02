@@ -10,7 +10,7 @@
 
 The Visual Ingredient Scanner is an end-to-end application that allows a user to point a phone camera at a fridge or kitchen counter, tap once, and receive a list of detected ingredients with estimated weights and three ranked recipe suggestions.
 
-The system is **serverless and privacy-first**: the computer vision pipeline runs entirely on-device, with only two lightweight Gemini API calls touching the network — one for ingredient density lookup (cached after the first call per class) and one for recipe generation.
+The system is **serverless and privacy-first**: the computer vision pipeline runs entirely on-device, with only a single lightweight Gemini API call touching the network — recipe generation. Ingredient density is now a static on-device table rather than an API call.
 
 ### Pipeline
 
@@ -21,9 +21,9 @@ Camera frame
 ① YOLO11s ──────────────► bounding boxes + class labels    (on-device)
      │
      ▼
-② Depth Anything V2-S ──► per-pixel depth map              (on-device)
+② Metric3D ViT-Small ───► metric depth map (metres)        (on-device)
      │
-     ├── ③ Gemini density call ──► kg/m³ per class (cached) (cloud, once per new class)
+     ├── ③ Static density table ──► kg/m³ per class          (on-device, food_densities.json)
      │
      ▼
 ④ Pinhole model + shape heuristics ──► weight per item (g)  (on-device)
@@ -39,7 +39,7 @@ Camera frame
 | Goal | Status |
 |---|---|
 | Fine-tune YOLO11s on food dataset | ✅ Done — mAP50-95 = **0.554** |
-| Export Depth Anything V2-S to ONNX | ✅ Done (`models/depth/`) |
+| Metric depth via Metric3D ViT-Small ONNX | ✅ Done (`models/depth/`, fp16 default) |
 | Implement full 5-stage Python pipeline | ✅ Done (`pipeline/`) |
 | Build working Gradio laptop demo | ✅ Done (`prototype/app.py`) |
 | Detection metrics (mAP) | ✅ Recorded — see §6 |
@@ -102,26 +102,28 @@ After merging, dominant classes (e.g., orange: 11,085 instances) were capped at 
 
 YOLO11s was chosen over YOLO11n (accuracy too low) and YOLO11m (too large for on-device). RF-DETR was excluded due to immature mobile export support.
 
-### 4.2 Stage ② — Depth Estimation: Depth Anything V2-S
+### 4.2 Stage ② — Depth Estimation: Metric3D ViT-Small
 
 | Property | Value |
 |---|---|
-| Checkpoint | `depth-anything/Depth-Anything-V2-Small` (Apache 2.0) |
-| Export | ONNX via `torch.onnx.export`, opset 17 |
-| Runtime | `onnxruntime` CPU |
+| Model | Metric3D v2, ViT-Small ([YvanYin/Metric3D](https://github.com/YvanYin/Metric3D), BSD-2) |
+| Files | `metric3d-vit-small-fp16.onnx` (~75 MB, **default**), `metric3d-vit-small.onnx` (~150 MB fp32) |
+| Runtime | `onnxruntime` CPU (fp16 graph needs `ORT_DISABLE_ALL`, handled automatically) |
 | Fine-tuning | None — pretrained checkpoint used as-is |
 
-**Depth calibration note:** The exported checkpoint is the relative-depth variant, which outputs unitless disparity values rather than metric metres. In the Python prototype, the depth map is normalised in two steps: (1) global min-max mapped to the [0.35 m, 3.0 m] indoor range; (2) the depth map is then rescaled so the median depth across all detected food bounding boxes equals 0.5 m — anchoring to the typical phone-to-counter distance for kitchen photography. This produces plausible weight estimates without requiring a recalibrated metric export. The proper fix (exporting from `depth-anything/Depth-Anything-V2-Small-Metric-Indoor-hf`) is planned before Phase 3.
+**Why we switched from Depth Anything V2-S.** Our first depth stage used Depth Anything V2-S (metric-indoor). Empirically it failed to produce usable *absolute* size: the checkpoint was trained on room-scale indoor scenes and is out-of-distribution for hand-held tabletop close-ups, where it **floors out around ~1 m** and its absolute scale drifts with the background. We worked around this with heuristics (scene normalisation, then a per-image rescale anchored to food-class size priors), but those were either scene-dependent or simply returned the prior — i.e. not real measurement.
 
-V2-Base and V2-Large were excluded due to CC-BY-NC licence restrictions.
+**Metric3D fixes this by consuming the camera intrinsics.** It is conditioned on the focal length via a *canonical-camera transform*: the input is resized/padded into a canonical 616×1064 frame, run, and the prediction is **de-canonicalised** back to metres with the real focal length — `depth_m = raw × (focal_px × resize_scale / 1000)`. Knowing the field of view is exactly what resolves monocular scale, so Metric3D returns true metric depth with **no calibration constant and no reference object**. On a lemon photographed against a table/floor, it reads 7.5 cm at 0.50 m with no tuning.
 
-### 4.3 Stage ③ — Density Lookup: Gemini API
+`pipeline/depth.py` auto-detects the model family from the ONNX outputs (Metric3D emits `predicted_normal`; Depth Anything does not) and applies the matching preprocessing, so Depth Anything V2-S is retained in `models/depth/` as a selectable baseline.
 
-- Model: `gemini-1.5-flash` (via `google-genai` SDK ≥ 1.0)
-- Called **once per scan** for any class not already cached
-- All new classes batched into a single API call
-- Results cached in `data/density_cache.json`; never re-queried for cached classes
-- Static fallback in `data/density_fallback.json` (68 entries) used when API is unavailable
+**Remaining limitation (fundamental).** A featureless-background *extreme* close-up of a single object is scale-ambiguous for any monocular model — there is no pixel cue to fix metric scale. Metric3D over-estimates distance in that case too (an orange filling the frame against a flat cupboard still reads ~25 cm). Mitigation is framing: include some counter/floor context. This is an inherent monocular limit, not an implementation bug.
+
+### 4.3 Stage ③ — Density Lookup: Static Table
+
+- Source: `data/food_densities.json` — curated average bulk densities (kg/m³) for all **109 classes**, packaging weight included for packaged goods.
+- `pipeline/density.py` loads the table and returns a density per detected class; unknown classes fall back to a hardcoded **800 kg/m³**.
+- **No API, no cache, no network.** Density cannot be inferred from pixels and is effectively constant per class, so a static table is simpler, fully offline, and free — and it removes one of the two original Gemini calls. The table is the single source of truth; edit it to tune any class.
 
 ### 4.4 Stage ④ — Weight Estimation: Pinhole Model + Shape Heuristics
 
@@ -138,7 +140,7 @@ Volume estimated using per-class shape heuristics:
 | Cylinder | banana, carrot, cucumber, oil bottle | `V = π(w/2)²·h` |
 | Box | bread, cheese, chicken, cereal box | `V = w · h · max(w,h) · 0.5` |
 
-`focal_length_px` is read from EXIF `FocalLengthIn35mmFilm`; falls back to `image_width × 0.8`.  
+`depth_m` is the **median Metric3D metric depth** inside the bounding box, used directly — no calibration constant or scale anchoring. `focal_length_px` is read from EXIF `FocalLengthIn35mmFilm`, falling back to `image_width × 0.8`; the same focal feeds both this pinhole projection and the Metric3D de-canonicalisation, so it is now load-bearing.  
 `weight_g = volume_m³ × density_kg_m³ × 1000`
 
 ### 4.5 Stage ⑤ — Recipe Generation: Gemini API
@@ -158,30 +160,31 @@ Volume estimated using per-class shape heuristics:
 ```
 pipeline/
 ├── detect.py       YOLO11s inference wrapper
-├── depth.py        Depth Anything V2-S ONNX wrapper + depth calibration
-├── density.py      Gemini density call + local cache
-├── weight.py       Pinhole model + shape heuristics + food-depth anchoring
+├── depth.py        Metric3D / Depth Anything ONNX wrapper (family auto-detected)
+├── density.py      Static density lookup (food_densities.json)
+├── weight.py       Pinhole model + shape heuristics
 ├── recipe.py       Gemini recipe generation
 └── pipeline.py     End-to-end orchestration
 
 training/
 ├── train_yolo.py              YOLO11s fine-tuning script
 ├── export_yolo.py             TFLite + CoreML export
-└── export_depth_onnx.py       Depth Anything V2-S → ONNX
+└── export_depth_onnx.py       Depth Anything V2-S → ONNX (baseline)
 
 prototype/
 └── app.py          Gradio laptop demo
 
 data/
-├── classes.yaml          68 classes with shape hints and densities
-├── density_fallback.json Static density table (68 entries)
-└── density_cache.json    Runtime Gemini density cache (auto-updated)
+├── classes.yaml         Class list with shape hints and densities
+└── food_densities.json  Static bulk-density table, kg/m³ (109 classes)
 
 models/
-├── yolo/
-│   └── food_detector.pt  Fine-tuned YOLO11s checkpoint (19.2 MB)
+├── yolo/                          variant sub-folders (v11s/, v26m/)
+│   └── food_detector.pt           Fine-tuned YOLO11s checkpoint (19.2 MB)
 └── depth/
-    └── depth_anything_v2_small.onnx
+    ├── metric3d-vit-small-fp16.onnx   Metric3D fp16 (~75 MB, default)
+    ├── metric3d-vit-small.onnx        Metric3D fp32 (~150 MB)
+    └── depth_anything_v2_small.onnx   Baseline alternative
 
 notebooks/
 └── train_yolo_kaggle.ipynb  Kaggle training notebook (T4 GPU)
@@ -246,7 +249,7 @@ Packaged goods (pasta, oil) were frequently missed — varying packaging appeara
 
 ### 6.2 Weight Estimation
 
-Weight estimation is functional and produces plausible gram estimates for close-up kitchen photography (~50 cm phone-to-food distance). Absolute accuracy is limited by the lack of a calibrated metric depth model. Observed results on a test image (lemon, tomato, apple, pomegranate, onion):
+Weight estimation is functional and produces plausible gram estimates. Absolute accuracy now hinges on the metric depth from Metric3D plus the shape heuristic. The table below (lemon, tomato, apple, pomegranate, onion) was recorded with the earlier Depth-Anything-plus-heuristic depth and is kept as a baseline:
 
 | Item | Estimated weight | Typical real weight |
 |---|---|---|
@@ -256,23 +259,23 @@ Weight estimation is functional and produces plausible gram estimates for close-
 | tomato | ~400–700 g | ~150–250 g |
 | apple | ~500–900 g | ~180–250 g |
 
-Rounder items (lemon, onion, pomegranate) are estimated more accurately than items with loose bounding boxes (tomato, apple). A proper metric depth export is expected to reduce the remaining error significantly.
+With Metric3D, **scenes that include background context are now measured to true scale without any tuning** — e.g. a lemon photographed on a table reads 7.5 cm at 0.50 m, giving a realistic ~150–200 g. The dominant remaining error sources are (a) the shape heuristic treating the bounding box as a solid sphere/cylinder/box, which over-estimates volume, and (b) the monocular scale ambiguity on featureless-background extreme close-ups (§4.2). Rounder items with tight bounding boxes remain the most accurate.
 
 ### 6.3 Depth Estimation
 
-The δ₁ accuracy metric (% of pixels within 25% of ground truth) has not been evaluated quantitatively at this stage, as it requires a paired RGB+depth ground-truth dataset. Qualitative inspection of the depth maps shows correct relative ordering (closer objects lighter, farther objects darker) with plausible spatial structure for kitchen scenes.
+The δ₁ accuracy metric (% of pixels within 25% of ground truth) has not been evaluated quantitatively at this stage, as it requires a paired RGB+depth ground-truth dataset. Qualitative inspection of the Metric3D depth maps shows physically plausible **metric** values (e.g. a tabletop scene spanning 0.34–4.5 m) with correct relative ordering, validated against ruler measurements of known objects.
 
 ---
 
 ## 7. Known Limitations
 
-1. **Depth model not metric** — The current ONNX export uses the relative-depth checkpoint. Depth values are calibrated via a two-step heuristic (scene normalisation + food-median anchoring at 0.5 m). A metric export is planned for Phase 3.
+1. **Monocular scale ambiguity on context-free close-ups** — Metric3D returns true metric depth when the frame contains scene context, but a featureless-background *extreme* close-up of a single object has no cue to fix metric scale, so distance (and therefore size) is over-estimated. This is a fundamental monocular limit, not a bug; mitigation is framing guidance (include some counter/floor).
 
-2. **Weight accuracy varies by item shape** — Round items are estimated within ×2 of actual weight. Items with loose bounding boxes or irregular shapes may be estimated at ×3–5. The ±30% target requires a metric depth model and tighter bbox crops.
+2. **Weight accuracy varies by item shape** — The shape heuristic treats the bounding box as a solid sphere/cylinder/box, over-estimating volume for irregular items and loose crops. Round items with tight boxes are most accurate. A per-shape fill factor is a candidate refinement for the ±30% target.
 
 3. **Packaged goods detection is weak** — Classes like pasta, oil, and juice are rarely detected with sufficient confidence. Packaging varies widely; more training data or a dedicated packaging detector would be needed.
 
-4. **Gemini free tier quota** — `gemini-2.0-flash-lite` and `gemini-2.0-flash` show `limit: 0` on the free tier in some Google account configurations. Migrated to `gemini-1.5-flash` and added full graceful fallback. Density estimation already works entirely offline via `density_fallback.json`.
+4. **Depth model size** — The Metric3D ONNX is 75 MB (fp16) / 150 MB (fp32), heavier than the YOLO detector. Acceptable for the laptop prototype; mobile deployment will want further quantisation. The fp16 graph also requires ONNX Runtime graph optimisations disabled (handled automatically in `depth.py`).
 
 5. **Low-instance classes** — `mayonnaise` (42 instances) and `hummus` (109 instances) are below ideal threshold. Detection recall for these classes is lower than average.
 
@@ -280,10 +283,10 @@ The δ₁ accuracy metric (% of pixels within 25% of ground truth) has not been 
 
 ## 8. Next Steps (Phase 3 — due 15–17 June 2026)
 
-- Re-export Depth Anything V2-S from metric indoor checkpoint and remove heuristic depth calibration
-- Run `evaluation/eval_weight.py` with the metric model to measure MAPE on held-out items
+- Run `evaluation/eval_weight.py` with Metric3D to measure MAPE on held-out items
+- Add a per-shape volume fill factor to reduce the solid-shape over-estimation
+- Validate the Metric3D ONNX on Android via `onnxruntime_flutter`; quantise further for mobile
 - Build Flutter mobile app (screens and services in `mobile/`)
-- Validate ONNX model on Android via `onnxruntime_flutter`
 - Export trained YOLO11s to TFLite INT8 and integrate into Flutter app
 - Measure end-to-end latency on a physical Android phone (target < 5 s)
 - Final report, presentation slides, and live demo video
