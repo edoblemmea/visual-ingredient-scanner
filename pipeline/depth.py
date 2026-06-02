@@ -36,15 +36,19 @@ _M3D_CANONICAL_FOCAL = 1000.0  # focal the model was canonicalised to during tra
 
 
 def _build_session(model_path: str | Path) -> ort.InferenceSession:
-    """Create an ORT session, retrying with optimizations off.
+    """Create an ORT session at the EXTENDED optimization level.
 
-    Some fp16 exports trip ORT's layernorm-fusion pass during initialization;
-    disabling graph optimizations sidesteps that bug at a small speed cost.
+    The default ORT_ENABLE_ALL level trips a layout/layernorm-fusion bug during
+    initialization on some fp16 exports (Metric3D), so loading it would crash.
+    ORT_ENABLE_EXTENDED avoids that buggy pass while still applying the operator
+    fusions, so we request it directly — no wasted failed-then-retry load. The
+    fallback to no optimizations is defensive insurance for unknown models.
     """
+    opts = ort.SessionOptions()
+    opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_EXTENDED
     try:
-        return ort.InferenceSession(str(model_path), providers=["CPUExecutionProvider"])
+        return ort.InferenceSession(str(model_path), sess_options=opts, providers=["CPUExecutionProvider"])
     except Exception:
-        opts = ort.SessionOptions()
         opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_DISABLE_ALL
         return ort.InferenceSession(str(model_path), sess_options=opts, providers=["CPUExecutionProvider"])
 
