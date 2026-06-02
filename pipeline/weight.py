@@ -88,8 +88,8 @@ def estimate_weights(
 ) -> list[WeightedDetection]:
     focal_px = _get_focal_length_px(image)
 
-    # depth_map is already in metres (normalised by depth.py to [0.35, 3.0] m).
-    # Do NOT re-anchor here — a second rescaling would corrupt depth.py's output.
+    # depth_map is true metric depth in metres (Metric3D, de-canonicalised in
+    # depth.py). Use it directly in the pinhole model — no re-anchoring.
 
     results: list[WeightedDetection] = []
 
@@ -99,7 +99,7 @@ def estimate_weights(
         if roi.size == 0:
             continue
         depth_m = float(np.median(roi))
-        depth_m = float(np.clip(depth_m, 0.3, 3.0))  # clamp to indoor range (matches depth normalisation)
+        depth_m = float(np.clip(depth_m, 0.1, 10.0))  # loose sanity guard on metric depth (metres)
 
         bbox_w_px = x2 - x1
         bbox_h_px = y2 - y1

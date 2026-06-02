@@ -1,27 +1,38 @@
-"""Depth Anything V2-S ONNX inference wrapper — returns a metric depth map in metres.
+"""Depth model ONNX wrappers — return a metric depth map in metres.
 
-NOTE: The current ONNX file is exported from the *relative* depth checkpoint
-(depth-anything/Depth-Anything-V2-Small), which outputs unitless disparity values.
-We normalise the output to a realistic indoor range so downstream weight estimation
-works correctly.  See export_depth_onnx.py for the proper metric-model export.
+Two model families are supported, auto-detected from the ONNX outputs:
+
+  • Metric3D (ViT-Small) — outputs predicted_depth + predicted_normal. Needs the
+    canonical-camera recipe: resize keeping aspect, pad to 616x1064, run, then
+    DE-CANONICALISE the output with the real focal length to get true metres.
+    This is the model that actually drives absolute distance.
+
+  • Depth Anything V2 (metric-indoor) — single predicted_depth output, 518x518
+    square input, already in metres. Returned as-is.
 """
 
 from __future__ import annotations
 from pathlib import Path
 
+import cv2
 import numpy as np
 import onnxruntime as ort
 from PIL import Image
 
+from .weight import _get_focal_length_px
 
-_INPUT_SIZE = (518, 518)
-_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
-_STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
-# Indoor kitchen scene: food is typically 0.3–0.8 m from the camera,
-# background (wall, fridge) is 1.5–3.0 m away.
-_SCENE_NEAR_M = 0.35   # metres assigned to the closest pixel in the depth map
-_SCENE_FAR_M  = 3.00   # metres assigned to the farthest pixel in the depth map
+# Depth Anything V2 preprocessing
+_DA_INPUT_SIZE = (518, 518)
+_DA_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+_DA_STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+
+# Metric3D canonical-camera preprocessing (pixel values in 0–255 scale)
+_M3D_INPUT = (616, 1064)  # (H, W) — both multiples of 14
+_M3D_MEAN = np.array([123.675, 116.28, 103.53], dtype=np.float32)
+_M3D_STD = np.array([58.395, 57.12, 57.375], dtype=np.float32)
+_M3D_PAD = (123.675, 116.28, 103.53)
+_M3D_CANONICAL_FOCAL = 1000.0  # focal the model was canonicalised to during training
 
 
 class DepthEstimator:
@@ -31,29 +42,58 @@ class DepthEstimator:
             providers=["CPUExecutionProvider"],
         )
         self._input_name = self.session.get_inputs()[0].name
+        out_names = {o.name for o in self.session.get_outputs()}
+        self._is_metric3d = "predicted_normal" in out_names or len(out_names) > 1
 
     def estimate(self, image: Image.Image) -> np.ndarray:
-        """Return a depth map (H, W) in approximate metres, resized to original dimensions."""
+        """Return a metric depth map (H, W) in metres, at the original resolution."""
+        if self._is_metric3d:
+            return self._estimate_metric3d(image)
+        return self._estimate_depth_anything(image)
+
+    def _estimate_depth_anything(self, image: Image.Image) -> np.ndarray:
         orig_w, orig_h = image.size
-        resized = image.resize(_INPUT_SIZE, Image.BILINEAR).convert("RGB")
+        resized = image.resize(_DA_INPUT_SIZE, Image.BILINEAR).convert("RGB")
         arr = np.array(resized, dtype=np.float32) / 255.0
-        arr = (arr - _MEAN) / _STD
+        arr = (arr - _DA_MEAN) / _DA_STD
         tensor = arr.transpose(2, 0, 1)[np.newaxis]  # (1, 3, H, W)
 
-        depth = self.session.run(None, {self._input_name: tensor})[0]  # (1, H, W) or (H, W)
+        depth = self.session.run(None, {self._input_name: tensor})[0]
         depth = np.squeeze(depth).astype(np.float32)
 
-        # Normalise relative depth to a metric-like range.
-        # The relative model outputs larger values for farther objects (same direction
-        # as metric depth), so min → nearest distance, max → farthest distance.
-        d_min, d_max = float(depth.min()), float(depth.max())
-        if d_max > d_min:
-            depth = (depth - d_min) / (d_max - d_min)          # [0, 1]
-            depth = depth * (_SCENE_FAR_M - _SCENE_NEAR_M) + _SCENE_NEAR_M
-
-        # Resize back to original image resolution
         depth_img = Image.fromarray(depth).resize((orig_w, orig_h), Image.BILINEAR)
         return np.array(depth_img, dtype=np.float32)
+
+    def _estimate_metric3d(self, image: Image.Image) -> np.ndarray:
+        focal_px = _get_focal_length_px(image)
+        rgb = np.array(image.convert("RGB"), dtype=np.float32)
+        h, w = rgb.shape[:2]
+
+        # Keep-aspect resize to fit the canonical input, then centre-pad to 616x1064.
+        scale = min(_M3D_INPUT[0] / h, _M3D_INPUT[1] / w)
+        rs = cv2.resize(rgb, (round(w * scale), round(h * scale)), interpolation=cv2.INTER_LINEAR)
+        rh, rw = rs.shape[:2]
+        pad_top = (_M3D_INPUT[0] - rh) // 2
+        pad_left = (_M3D_INPUT[1] - rw) // 2
+        pad_bottom = _M3D_INPUT[0] - rh - pad_top
+        pad_right = _M3D_INPUT[1] - rw - pad_left
+        padded = cv2.copyMakeBorder(
+            rs, pad_top, pad_bottom, pad_left, pad_right,
+            cv2.BORDER_CONSTANT, value=_M3D_PAD,
+        )
+
+        tensor = ((padded - _M3D_MEAN) / _M3D_STD).transpose(2, 0, 1)[np.newaxis]
+        depth = self.session.run(["predicted_depth"], {self._input_name: tensor})[0]
+        depth = np.squeeze(depth).astype(np.float32)
+
+        # Un-pad, restore original resolution.
+        depth = depth[pad_top:_M3D_INPUT[0] - pad_bottom, pad_left:_M3D_INPUT[1] - pad_right]
+        depth = cv2.resize(depth, (w, h), interpolation=cv2.INTER_LINEAR)
+
+        # De-canonicalise: the prediction is in canonical-focal space; scale it back
+        # to real metres using the (resized) focal length.
+        depth = depth * (focal_px * scale / _M3D_CANONICAL_FOCAL)
+        return depth.astype(np.float32)
 
 
 if __name__ == "__main__":
@@ -61,7 +101,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--image", required=True)
-    parser.add_argument("--model", default="models/depth/depth_anything_v2_small.onnx")
+    parser.add_argument("--model", default="models/depth/metric3d-vit-small.onnx")
     parser.add_argument("--out", default="depth_output.npy")
     args = parser.parse_args()
 
