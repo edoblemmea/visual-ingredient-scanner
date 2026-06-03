@@ -15,7 +15,7 @@ models/yolo/*.mlmodel
 models/yolo/*.mlpackage
 models/depth/*.onnx
 models/depth/*.onnx.data
-models/yolo/v26m/*.pt
+*epochs.pt
 
 # Datasets (downloaded from Roboflow, not committed)
 datasets/
