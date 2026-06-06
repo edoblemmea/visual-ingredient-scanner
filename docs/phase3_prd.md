@@ -42,13 +42,13 @@ Ship **only** the two correctly-exported NMS-baked ONNX detectors:
 | id | File | Source | I/O |
 |---|---|---|---|
 | `v26m_e30` (default) | `assets/models/epoch30.onnx` | `models/yolo/v26m/v26m_v7/epoch30.onnx` (~78 MB) | in `images[1,3,640,640]` → out `output0[1,300,6]` |
-| `v26m_e40` | `assets/models/epoch40.onnx` | **must be exported** from `models/yolo/v26m/v26m_v7/food_detector_v26m_v7_40epochs.pt` | same as above |
+| `v26m_e40` | `assets/models/epoch40.onnx` | `models/yolo/v26m/v26m_v7/epoch40.onnx` (~78 MB) | same as above |
 
 - `output0[1,300,6]` rows are `[x1, y1, x2, y2, score, class_id]` in 640×640 space — **NMS is
   already baked in**. No manual NMS in Dart; just threshold on `score` and rescale boxes to the
   original image.
-- ⚠️ **`epoch40.onnx` does not exist yet** — only `epoch10/20/30.onnx` are on disk. Export it
-  first (one-off, §5) before bundling. All other `.pt` / older variants are **excluded**.
+- ✅ Both `epoch30.onnx` and `epoch40.onnx` exist on disk and share the verified I/O above. All
+  other `.pt` / older variants are **excluded**.
 
 ### 2.2 Depth models (selectable — the "scale" model)
 | id | File | family | size | role |
@@ -156,17 +156,12 @@ degrades to a "no recipes" state offline. API key from Settings.
 
 ---
 
-## 5. One-off prerequisite (before app integration)
+## 5. One-off prerequisite (before app integration) — ✅ DONE
 
-Export the missing detector to the same NMS-baked ONNX format:
-
-```
-yolo export model=models/yolo/v26m/v26m_v7/food_detector_v26m_v7_40epochs.pt \
-  format=onnx nms=True imgsz=640 opset=12
-# rename → models/yolo/v26m/v26m_v7/epoch40.onnx
-```
-Verify it loads under `onnxruntime` and emits `output0[1,300,6]`. Confirm both depth ONNX files
-load under the mobile ORT build (the Metric3D fp16 graph needs reduced graph optimisation — see
+Both detectors are exported to the NMS-baked ONNX format and I/O-verified
+(`images[1,3,640,640]` → `output0[1,300,6]`): `epoch30.onnx` and `epoch40.onnx` (~78 MB each)
+under `models/yolo/v26m/v26m_v7/`. Remaining check for S8: confirm both depth ONNX files load
+under the mobile ORT build (the Metric3D fp16 graph needs reduced graph optimisation — see
 [depth.py](../pipeline/depth.py:38)).
 
 ---
@@ -192,13 +187,16 @@ metadata.
 
 Each step is a single self-contained commit. Do them in order; later steps assume earlier ones.
 
-**S0 — Export `epoch40.onnx`** (§5). Commit the new ONNX (or download instructions if >100 MB).
-> commit: `chore(models): export v26m epoch40 to NMS-baked ONNX`
+**S0 — Export `epoch40.onnx`** (§5). ✅ **DONE** — `epoch30.onnx` and `epoch40.onnx` exist and
+are I/O-verified.
 
-**S1 — Flutter scaffold.** `flutter create mobile`; folder layout per CLAUDE.md
-(`lib/{screens,services,models}`); add deps (`camera`, `image`, `onnxruntime`,
-`google_generative_ai`, `provider`, `shared_preferences`, `path_provider`, `flutter_dotenv`);
-`analysis_options.yaml`. App builds and runs an empty home.
+**S1 — Flutter scaffold.** ✅ **DONE.** Created `mobile/` via
+`flutter create --org edu.upc.fib.cv --project-name visual_ingredient_scanner --platforms=android,ios`
+(Flutter 3.41.9 / Dart 3.11.5). Folder layout `lib/{screens,services,models,widgets}`; deps added
+(`camera`, `image`, `onnxruntime`, `google_generative_ai`, `flutter_dotenv`, `provider`,
+`shared_preferences`, `path_provider`); `analysis_options.yaml` (flutter_lints) in place. App boots
+to `HomeScreen` with a route into a `SettingsScreen` placeholder. `flutter analyze` clean; smoke
+test passes.
 > commit: `feat(mobile): flutter scaffold + dependencies`
 
 **S2 — Bundle assets + registry.** Place the two detector ONNX, two depth ONNX, `food_densities.json`,
