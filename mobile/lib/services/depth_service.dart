@@ -80,9 +80,11 @@ class DepthService {
   }) async {
     OrtRuntime.ensureInitialized();
     final raw = await rootBundle.load(assetPath);
+    // Disable graph optimization: avoids optimizer-emitted nodes the mobile ORT
+    // build can't run, and is what the fp16 Metric3D graph needs (CLAUDE.md ②).
     final options = OrtSessionOptions()
       ..setIntraOpNumThreads(2)
-      ..setSessionGraphOptimizationLevel(GraphOptimizationLevel.ortEnableExtended);
+      ..setSessionGraphOptimizationLevel(GraphOptimizationLevel.ortDisableAll);
     final session = OrtSession.fromBuffer(raw.buffer.asUint8List(), options);
     return DepthService._(
       session,

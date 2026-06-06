@@ -352,8 +352,20 @@ provider; a provider test asserts the key never lands in the prefs blob; `flutte
 55 tests pass.
 > commit: `feat(mobile): settings screen with detector/depth model selection`
 
-**S13 — Density editor.** Searchable per-class kg/m³ editor with per-row + global reset;
-persisted; live recompute when editing a class in the current scan (G7).
+**S13 — Density editor.** ✅ **DONE.**
+[DensityEditorScreen](../mobile/lib/screens/density_editor_screen.dart) (reached from a Settings
+entry): searchable list of all 86 classes showing the effective kg/m³ (override or baseline) via
+`DensityService`, edited through a numeric dialog. Per-row "undo to default" (shows the baseline)
+and a global "reset all" in the app bar. Edits persist as overrides (G4) and push into
+`ScanController.updateSettings` so the current scan's weights recompute live (G7). Widget test
+covers search filtering. `flutter analyze` clean, 56 tests pass.
+
+> **Scan bug fixed (reported during S13).** On-device scan failed with ORT `code=9`
+> (NOT_IMPLEMENTED) "Could not find an implementation for Reshape(19)" on the v26m attention
+> blocks. Root cause: the mobile ORT 1.15.1 graph **optimizer** emits fused/layout nodes with no
+> kernel (the models are opset-19/IR-9, which 1.15 otherwise supports). Fix: set the detector and
+> depth sessions to `GraphOptimizationLevel.ortDisableAll` (also what the fp16 Metric3D graph
+> needs). Needs on-device re-verification.
 > commit: `feat(mobile): editable density table screen`
 
 **S14 — Visualisation toggles (hidden by default).** Bounding-box overlay + colour-mapped

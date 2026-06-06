@@ -58,9 +58,12 @@ class DetectorService {
   }) async {
     OrtRuntime.ensureInitialized();
     final raw = await rootBundle.load(assetPath);
+    // Disable graph optimization: on the mobile ORT build, the optimizer can
+    // emit fused/layout nodes with no matching kernel ("Could not find an
+    // implementation for Reshape(19) …" on the v26m attention blocks).
     final options = OrtSessionOptions()
       ..setIntraOpNumThreads(2)
-      ..setSessionGraphOptimizationLevel(GraphOptimizationLevel.ortEnableExtended);
+      ..setSessionGraphOptimizationLevel(GraphOptimizationLevel.ortDisableAll);
     final session = OrtSession.fromBuffer(raw.buffer.asUint8List(), options);
     return DetectorService._(
       session,

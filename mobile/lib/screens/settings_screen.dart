@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../services/asset_catalog.dart';
 import '../state/settings_provider.dart';
+import 'density_editor_screen.dart';
 
 /// Settings: detector + depth model selection (applied on the next scan),
 /// confidence threshold, and the Gemini API key. The density editor (S13),
@@ -53,6 +54,17 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
           const _Hint('Model changes apply on the next scan.'),
+          const Divider(),
+          const _SectionHeader('Density table'),
+          ListTile(
+            leading: const Icon(Icons.scale),
+            title: const Text('Edit ingredient densities'),
+            subtitle: const Text('Tune kg/m³ per class; recomputes weights'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const DensityEditorScreen()),
+            ),
+          ),
           const Divider(),
           const _SectionHeader('Detection confidence'),
           _ConfidenceSlider(settings: settings),
