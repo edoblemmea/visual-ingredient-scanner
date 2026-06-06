@@ -1,0 +1,34 @@
+{
+  "detectors": [
+    {
+      "id": "v26m_e30",
+      "label": "YOLO v26m · epoch30 (default)",
+      "asset": "assets/models/epoch30.onnx",
+      "inputSize": 640,
+      "default": true
+    },
+    {
+      "id": "v26m_e40",
+      "label": "YOLO v26m · epoch40",
+      "asset": "assets/models/epoch40.onnx",
+      "inputSize": 640
+    }
+  ],
+  "depth": [
+    {
+      "id": "metric3d",
+      "label": "Metric3D ViT-S (metric)",
+      "asset": "assets/models/metric3d-vit-small-fp16.onnx",
+      "family": "metric3d",
+      "default": true
+    },
+    {
+      "id": "depthanything",
+      "label": "Depth Anything V2-S (relative)",
+      "asset": "assets/models/depth_anything_v2_small.onnx",
+      "family": "depthanything",
+      "externalData": "assets/models/depth_anything_v2_small.onnx.data",
+      "requiresManualDownload": true
+    }
+  ]
+}

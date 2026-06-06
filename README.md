@@ -150,6 +150,60 @@ flutter pub get
 flutter run
 ```
 
+#### Bundled models
+
+The app compiles its CV models in as Flutter assets under `mobile/assets/`. The two
+detectors and the default depth model are committed to the repo (each < 100 MB):
+
+| Asset | Size | In git? |
+|---|---|---|
+| `assets/models/epoch30.onnx` (YOLO v26m, default detector) | ~78 MB | ✅ committed |
+| `assets/models/epoch40.onnx` (YOLO v26m, alt detector) | ~78 MB | ✅ committed |
+| `assets/models/metric3d-vit-small-fp16.onnx` (default depth) | ~76 MB | ✅ committed |
+| `assets/models/depth_anything_v2_small.onnx` (alt depth, graph) | ~2 MB | ✅ committed |
+| `assets/models/depth_anything_v2_small.onnx.data` (alt depth, weights) | ~99 MB | ⛔ **manual download** |
+
+**Manual download — `depth_anything_v2_small.onnx.data`:** this ONNX external-data file
+holds the Depth Anything V2-S weights and is too close to GitHub's 100 MB per-file limit to
+commit, so it is gitignored. The app still builds and runs without it — the default Metric3D
+depth model works out of the box, and the **Depth Anything** option is simply unavailable
+until the file is present. To enable it, place the file at
+`mobile/assets/models/depth_anything_v2_small.onnx.data` by either:
+
+- copying it from this repo's local working tree at `models/depth/depth_anything_v2_small.onnx.data`, or
+- re-exporting it with `python training/export_depth_onnx.py` (writes to `models/depth/`), then copying it across.
+
+```bash
+cp models/depth/depth_anything_v2_small.onnx.data mobile/assets/models/
+```
+
+#### Run on an Android emulator
+
+Requires Android Studio with the Android SDK + an AVD (virtual device) installed. List the
+emulators Flutter can see, launch one, confirm it's connected, then run the app:
+
+```bash
+# 1. List available emulators (AVDs)
+flutter emulators
+# e.g. ->  Pixel_9_Pro • Pixel 9 Pro • Google • android
+
+# 2. Launch one by its id (creates a default Pixel AVD if you have none:
+#    flutter emulators --create  then re-list)
+flutter emulators --launch Pixel_9_Pro
+
+# 3. Wait for it to boot, then confirm the device is connected
+flutter devices            # should now list e.g. sdk gphone64 arm64 (emulator-5554)
+
+# 4. Build + install + run the app on the emulator
+cd mobile
+flutter pub get
+flutter run -d emulator-5554     # or: flutter run -d android
+```
+
+While running, press `r` for hot reload, `R` for hot restart, and `q` to quit. The first
+Android build is slow (Gradle downloads its dependencies) and the ~235 MB of bundled model
+assets make the install step take a while; subsequent runs are fast.
+
 ---
 
 ## Models

@@ -199,9 +199,15 @@ to `HomeScreen` with a route into a `SettingsScreen` placeholder. `flutter analy
 test passes.
 > commit: `feat(mobile): flutter scaffold + dependencies`
 
-**S2 — Bundle assets + registry.** Place the two detector ONNX, two depth ONNX, `food_densities.json`,
-`labels.txt`, `model_registry.json` under `mobile/assets/`; declare in `pubspec.yaml`. Load &
-parse registry + labels at startup; assert 86 labels.
+**S2 — Bundle assets + registry.** ✅ **DONE.** Copied both detector ONNX, the default depth ONNX,
+the Depth Anything graph, `food_densities.json`, generated `labels.txt` (86 classes from
+`classes.yaml`), and `model_registry.json` under `mobile/assets/`; declared `assets/` directories
+in `pubspec.yaml`. **GitHub 100 MB limit:** the four files < 100 MB are committed; the ~99 MB
+`depth_anything_v2_small.onnx.data` external-data blob is gitignored and documented for manual
+download in the README (default Metric3D path works without it). `AssetCatalog`/`AppCatalog`
+([asset_catalog.dart](../mobile/lib/services/asset_catalog.dart)) parse the registry + labels +
+densities at startup and assert 86 labels; HomeScreen renders the loaded counts. Unit tests cover
+registry/labels/density parsing; `flutter analyze` clean, tests pass.
 > commit: `feat(mobile): bundle models, density table, and model registry`
 
 **S3 — Domain models.** Dart classes: `Detection`, `WeightedItem`, `ScanResult`,
