@@ -210,8 +210,13 @@ densities at startup and assert 86 labels; HomeScreen renders the loaded counts.
 registry/labels/density parsing; `flutter analyze` clean, tests pass.
 > commit: `feat(mobile): bundle models, density table, and model registry`
 
-**S3 — Domain models.** Dart classes: `Detection`, `WeightedItem`, `ScanResult`,
-`ModelChoice`, `Recipe`, `AppSettings`.
+**S3 — Domain models.** ✅ **DONE.** Pure value objects under
+[mobile/lib/models/](../mobile/lib/models/): `BBox`, `Detection` (+ `isManual` for FR7), `Shape`
+enum + `WeightedItem`, `Recipe` (snake_case JSON matching Gemini), `ModelChoice` (value equality
+to detect selection changes), `ScanResult` (with `fromItems` per-class gram aggregation mirroring
+`pipeline.py`), and `AppSettings` (nullable model ids → registry defaults, density overrides,
+viz toggles, API key; JSON round-trip for S4). Barrel `models.dart`. Unit tests cover aggregation,
+Recipe JSON, and AppSettings round-trip; `flutter analyze` clean, 10 tests pass.
 > commit: `feat(mobile): core domain models`
 
 **S4 — Persistence.** `SettingsRepository` over `shared_preferences` (+ JSON file for the
