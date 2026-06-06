@@ -23,6 +23,14 @@ const _androidAdaptiveForegrounds = {
   'android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png': 432,
 };
 
+const _androidLaunchImages = {
+  'android/app/src/main/res/mipmap-mdpi/launch_image.png': 128,
+  'android/app/src/main/res/mipmap-hdpi/launch_image.png': 192,
+  'android/app/src/main/res/mipmap-xhdpi/launch_image.png': 256,
+  'android/app/src/main/res/mipmap-xxhdpi/launch_image.png': 384,
+  'android/app/src/main/res/mipmap-xxxhdpi/launch_image.png': 512,
+};
+
 const _iosIcons = {
   'ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@1x.png': 20,
   'ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@2x.png': 40,
@@ -45,9 +53,14 @@ const _iosIcons = {
 
 void main() {
   final source = _drawIcon();
+  final branding = _drawIconForeground();
+  final launchImage = _drawIconForeground(contentScale: 0.68);
   final foreground = _drawAdaptiveForeground();
 
-  _writePng('assets/branding/app_icon.png', img.copyResize(source, width: 512));
+  _writePng(
+    'assets/branding/app_icon.png',
+    img.copyResize(branding, width: 512),
+  );
 
   for (final entry in {..._androidIcons, ..._iosIcons}.entries) {
     _writePng(entry.key, img.copyResize(source, width: entry.value));
@@ -55,12 +68,41 @@ void main() {
   for (final entry in _androidAdaptiveForegrounds.entries) {
     _writePng(entry.key, img.copyResize(foreground, width: entry.value));
   }
+  for (final entry in _androidLaunchImages.entries) {
+    _writePng(entry.key, img.copyResize(launchImage, width: entry.value));
+  }
 }
 
 img.Image _drawIcon() {
   final image = img.Image(width: _canvas, height: _canvas);
   _paintBackground(image);
   _drawPan(image, withShadow: true);
+  return _downsample(image);
+}
+
+img.Image _drawIconForeground({double contentScale = 1}) {
+  final raw = img.Image(width: _canvas, height: _canvas, numChannels: 4);
+  img.fill(raw, color: _rgba(0, 0, 0, 0));
+  _drawPan(raw, withShadow: true);
+
+  if (contentScale == 1) {
+    return _downsample(raw);
+  }
+
+  final image = img.Image(width: _canvas, height: _canvas, numChannels: 4);
+  img.fill(image, color: _rgba(0, 0, 0, 0));
+  final scaled = img.copyResize(
+    raw,
+    width: (_canvas * contentScale).round(),
+    height: (_canvas * contentScale).round(),
+    interpolation: img.Interpolation.average,
+  );
+  img.compositeImage(
+    image,
+    scaled,
+    dstX: (image.width - scaled.width) ~/ 2,
+    dstY: (image.height - scaled.height) ~/ 2,
+  );
   return _downsample(image);
 }
 
@@ -73,8 +115,8 @@ img.Image _drawAdaptiveForeground() {
   img.fill(image, color: _rgba(0, 0, 0, 0));
   final safeForeground = img.copyResize(
     raw,
-    width: (_canvas * 0.66).round(),
-    height: (_canvas * 0.66).round(),
+    width: (_canvas * 0.56).round(),
+    height: (_canvas * 0.56).round(),
     interpolation: img.Interpolation.average,
   );
   img.compositeImage(

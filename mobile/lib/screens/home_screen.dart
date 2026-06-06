@@ -43,8 +43,8 @@ class HomeScreen extends StatelessWidget {
           children: [
             Image.asset(
               'assets/branding/app_icon.png',
-              width: 104,
-              height: 104,
+              width: 144,
+              height: 144,
               semanticLabel: 'Foodie Lens',
             ),
             const SizedBox(height: 16),
