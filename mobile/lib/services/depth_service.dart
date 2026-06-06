@@ -1,12 +1,9 @@
 import 'dart:typed_data';
 
-import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter_onnxruntime/flutter_onnxruntime.dart';
 import 'package:image/image.dart' as img;
-import 'package:onnxruntime/onnxruntime.dart';
 
 import '../models/depth_map.dart';
-import 'ort_float16.dart';
-import 'ort_runtime.dart';
 
 /// Which depth model family is loaded — selects the pre/post-processing branch,
 /// mirroring the auto-detection in `pipeline/depth.py`. Keyed off the registry
@@ -36,29 +33,27 @@ class Metric3dInput {
   final int resizedH;
 }
 
-/// Stage ② — metric depth over ONNX Runtime. Pure Dart port of
-/// `pipeline/depth.py`. **Float32 models only**: the Dart onnxruntime package
-/// cannot create or read float16 tensors, so use the fp32 Metric3D export
-/// (`metric3d-vit-small.onnx`), not the fp16 one.
+/// Stage ② — metric depth over flutter_onnxruntime (ORT 1.22). Pure Dart port of
+/// `pipeline/depth.py`. The fp16 Metric3D model is fed via the runtime's native
+/// float16 conversion (`OrtValue.to(float16)`), and float16 output is read back
+/// as doubles by `asFlattenedList()` — no manual half-precision handling.
 ///
-/// Pre/post-processing are pure static methods, unit-tested without native
-/// inference.
+/// Pre/post-processing are pure static methods, unit-tested without inference.
 class DepthService {
   DepthService._(
     this._session,
-    this._options,
     this._inputName,
+    this._outputName,
     this.family,
     this.float16,
   );
 
   final OrtSession _session;
-  final OrtSessionOptions _options;
   final String _inputName;
+  final String _outputName;
   final DepthFamily family;
 
-  /// True when the model has float16 I/O (the Metric3D fp16 export); the package
-  /// can't auto-handle that, so we use the [ort_float16] FFI helpers.
+  /// True when the model has float16 I/O (the Metric3D fp16 export).
   final bool float16;
 
   // Metric3D canonical-camera recipe (pixel values in 0–255 scale).
@@ -78,18 +73,18 @@ class DepthService {
     required DepthFamily family,
     bool float16 = false,
   }) async {
-    OrtRuntime.ensureInitialized();
-    final raw = await rootBundle.load(assetPath);
-    // Disable graph optimization: avoids optimizer-emitted nodes the mobile ORT
-    // build can't run, and is what the fp16 Metric3D graph needs (CLAUDE.md ②).
-    final options = OrtSessionOptions()
-      ..setIntraOpNumThreads(2)
-      ..setSessionGraphOptimizationLevel(GraphOptimizationLevel.ortDisableAll);
-    final session = OrtSession.fromBuffer(raw.buffer.asUint8List(), options);
+    final session = await OnnxRuntime().createSessionFromAsset(
+      assetPath,
+      options: OrtSessionOptions(intraOpNumThreads: 2),
+    );
+    // Metric3D emits multiple outputs; we only need the depth map.
+    final outputName = session.outputNames.contains('predicted_depth')
+        ? 'predicted_depth'
+        : session.outputNames.first;
     return DepthService._(
       session,
-      options,
       session.inputNames.first,
+      outputName,
       family,
       float16,
     );
@@ -116,8 +111,8 @@ class DepthService {
       outW: m3dInputW,
     );
     final unpadded = cropPlane(
-      out.values,
-      out.w,
+      out,
+      m3dInputW,
       pre.padLeft,
       pre.padTop,
       pre.resizedW,
@@ -146,52 +141,45 @@ class DepthService {
       outW: daInputSize,
     );
     final resized =
-        bilinearResize(out.values, out.w, out.h, image.width, image.height);
+        bilinearResize(out, daInputSize, daInputSize, image.width, image.height);
     return DepthMap(width: image.width, height: image.height, data: resized);
   }
 
-  Future<({Float32List values, int h, int w})> _infer(
+  /// Runs inference and returns the depth plane as a flat `Float32List`
+  /// (length `outH*outW`). Converts the input to float16 for fp16 models.
+  Future<Float32List> _infer(
     Float32List data,
     List<int> shape, {
     required int outH,
     required int outW,
   }) async {
-    final input = float16
-        ? createFloat16InputTensor(data, shape)
-        : OrtValueTensor.createTensorWithDataList(data, shape);
-    final runOptions = OrtRunOptions();
-    List<OrtValue?>? outputs;
+    var input = await OrtValue.fromList(data, shape);
+    if (float16) {
+      final converted = await input.to(OrtDataType.float16);
+      await input.dispose();
+      input = converted;
+    }
+    Map<String, OrtValue>? outputs;
     try {
-      outputs =
-          await _session.runAsync(runOptions, {_inputName: input}, ['predicted_depth']);
-      final output = outputs!.first!;
-      if (float16) {
-        return (values: readFloat16OutputTensor(output, outH * outW), h: outH, w: outW);
+      outputs = await _session.run({_inputName: input});
+      final flat = await outputs[_outputName]!.asFlattenedList();
+      final result = Float32List(outH * outW);
+      final n = result.length < flat.length ? result.length : flat.length;
+      for (var i = 0; i < n; i++) {
+        result[i] = (flat[i] as num).toDouble();
       }
-      final batched = output.value as List; // [1, H, W]
-      final grid = batched[0] as List;
-      final h = grid.length;
-      final w = (grid[0] as List).length;
-      final flat = Float32List(h * w);
-      var k = 0;
-      for (var y = 0; y < h; y++) {
-        final row = grid[y] as List;
-        for (var x = 0; x < w; x++) {
-          flat[k++] = (row[x] as num).toDouble();
+      return result;
+    } finally {
+      await input.dispose();
+      if (outputs != null) {
+        for (final v in outputs.values) {
+          await v.dispose();
         }
       }
-      return (values: flat, h: h, w: w);
-    } finally {
-      input.release();
-      runOptions.release();
-      outputs?.forEach((o) => o?.release());
     }
   }
 
-  void dispose() {
-    _session.release();
-    _options.release();
-  }
+  Future<void> dispose() => _session.close();
 
   // ---- pure, testable helpers -------------------------------------------
 

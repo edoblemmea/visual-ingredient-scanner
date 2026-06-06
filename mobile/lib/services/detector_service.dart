@@ -1,14 +1,12 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter_onnxruntime/flutter_onnxruntime.dart';
 import 'package:image/image.dart' as img;
-import 'package:onnxruntime/onnxruntime.dart';
 
 import '../models/app_settings.dart' show kDefaultConfidence;
 import '../models/bbox.dart';
 import '../models/detection.dart';
-import 'ort_runtime.dart';
 
 /// Result of letterboxing an image into the square model input: the CHW RGB
 /// tensor data plus the transform needed to map detections back to original px.
@@ -26,25 +24,24 @@ class LetterboxInput {
   final double padY;
 }
 
-/// Stage ① — YOLO detector over ONNX Runtime. The exported graph has NMS baked
-/// in (`images[1,3,640,640]` → `output0[1,300,6]`, rows
+/// Stage ① — YOLO detector over flutter_onnxruntime (ORT 1.22). The exported
+/// graph has NMS baked in (`images[1,3,640,640]` → `output0[1,300,6]`, rows
 /// `[x1,y1,x2,y2,score,class]` in input-space px), so decoding is just a
 /// threshold + un-letterbox; no manual NMS.
 ///
-/// Preprocess and decode are pure static methods so they can be unit-tested
-/// without native inference.
+/// Preprocess and decode are pure static methods, unit-tested without inference.
 class DetectorService {
   DetectorService._(
     this._session,
-    this._options,
     this._inputName,
+    this._outputName,
     this._labels,
     this.inputSize,
   );
 
   final OrtSession _session;
-  final OrtSessionOptions _options;
   final String _inputName;
+  final String _outputName;
   final List<String> _labels;
   final int inputSize;
 
@@ -56,42 +53,32 @@ class DetectorService {
     required List<String> labels,
     int inputSize = 640,
   }) async {
-    OrtRuntime.ensureInitialized();
-    final raw = await rootBundle.load(assetPath);
-    // Disable graph optimization: on the mobile ORT build, the optimizer can
-    // emit fused/layout nodes with no matching kernel ("Could not find an
-    // implementation for Reshape(19) …" on the v26m attention blocks).
-    final options = OrtSessionOptions()
-      ..setIntraOpNumThreads(2)
-      ..setSessionGraphOptimizationLevel(GraphOptimizationLevel.ortDisableAll);
-    final session = OrtSession.fromBuffer(raw.buffer.asUint8List(), options);
+    final session = await OnnxRuntime().createSessionFromAsset(
+      assetPath,
+      options: OrtSessionOptions(intraOpNumThreads: 2),
+    );
     return DetectorService._(
       session,
-      options,
       session.inputNames.first,
+      session.outputNames.first,
       labels,
       inputSize,
     );
   }
 
-  /// Runs inference on a background isolate (ORT RunAsync) so the UI thread
-  /// stays free. Preprocess/decode are synchronous Dart (comparatively cheap).
   Future<List<Detection>> detect(
     img.Image image, {
     double confThreshold = kDefaultConfidence,
   }) async {
     final input = preprocess(image, inputSize);
-    final inputTensor = OrtValueTensor.createTensorWithDataList(
-      input.data,
-      [1, 3, inputSize, inputSize],
-    );
-    final runOptions = OrtRunOptions();
-    List<OrtValue?>? outputs;
+    final inputValue =
+        await OrtValue.fromList(input.data, [1, 3, inputSize, inputSize]);
+    Map<String, OrtValue>? outputs;
     try {
-      outputs = await _session.runAsync(runOptions, {_inputName: inputTensor});
-      final rows = _toRows(outputs!.first?.value);
+      outputs = await _session.run({_inputName: inputValue});
+      final flat = await outputs[_outputName]!.asFlattenedList();
       return decodeDetections(
-        rows,
+        _toRows(flat),
         scale: input.scale,
         padX: input.padX,
         padY: input.padY,
@@ -101,16 +88,16 @@ class DetectorService {
         confThreshold: confThreshold,
       );
     } finally {
-      inputTensor.release();
-      runOptions.release();
-      outputs?.forEach((o) => o?.release());
+      await inputValue.dispose();
+      if (outputs != null) {
+        for (final v in outputs.values) {
+          await v.dispose();
+        }
+      }
     }
   }
 
-  void dispose() {
-    _session.release();
-    _options.release();
-  }
+  Future<void> dispose() => _session.close();
 
   /// Aspect-preserving resize into [size]×[size] with centre grey padding,
   /// written as a CHW RGB float tensor normalised to 0–1.
@@ -182,11 +169,13 @@ class DetectorService {
     return detections;
   }
 
-  static List<List<double>> _toRows(Object? value) {
-    final batch = (value as List)[0] as List; // [1, N, 6] -> N rows
-    return [
-      for (final r in batch)
-        [for (final e in (r as List)) (e as num).toDouble()],
-    ];
+  /// Reshapes a flat `[1,N,6]` output into N rows of 6 doubles.
+  static List<List<double>> _toRows(List<dynamic> flat) {
+    const cols = 6;
+    final rows = <List<double>>[];
+    for (var i = 0; i + cols <= flat.length; i += cols) {
+      rows.add([for (var j = 0; j < cols; j++) (flat[i + j] as num).toDouble()]);
+    }
+    return rows;
   }
 }
