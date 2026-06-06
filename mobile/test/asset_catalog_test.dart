@@ -4,16 +4,24 @@ import 'package:visual_ingredient_scanner/services/asset_catalog.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('registry exposes both detectors and both depth models with defaults', () async {
+  test('registry exposes detectors and depth models with defaults', () async {
     final registry = await AssetCatalog.loadRegistry();
 
-    expect(registry.detectors.map((d) => d.id), containsAll(['v26m_e30', 'v26m_e40']));
-    expect(registry.depth.map((d) => d.id), containsAll(['metric3d', 'depthanything']));
-    expect(registry.defaultDetector.id, 'v26m_e30');
+    expect(
+      registry.detectors.map((d) => d.id),
+      containsAll(['v26m_e30', 'v26m_e40', 'v26m_best']),
+    );
+    expect(
+      registry.depth.map((d) => d.id),
+      containsAll(['metric3d', 'depthanything']),
+    );
+    expect(registry.defaultDetector.id, 'v26m_e40');
     expect(registry.defaultDepth.id, 'metric3d');
 
-    final depthAnything = registry.depth.firstWhere((d) => d.id == 'depthanything');
-    expect(depthAnything.requiresManualDownload, isTrue);
+    final depthAnything = registry.depth.firstWhere(
+      (d) => d.id == 'depthanything',
+    );
+    expect(depthAnything.requiresManualDownload, isFalse);
     expect(depthAnything.externalData, isNotNull);
   });
 

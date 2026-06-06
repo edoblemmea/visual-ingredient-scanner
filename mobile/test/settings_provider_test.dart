@@ -27,33 +27,35 @@ void main() {
     final registry = await AssetCatalog.loadRegistry();
     final provider = await makeProvider(registry);
 
-    expect(provider.modelChoice.detectorId, 'v26m_e30');
+    expect(provider.modelChoice.detectorId, 'v26m_e40');
     expect(provider.modelChoice.depthId, 'metric3d');
   });
 
-  test('changes persist across provider instances, key via secure storage (G4)',
-      () async {
-    final registry = await AssetCatalog.loadRegistry();
+  test(
+    'changes persist across provider instances, key via secure storage (G4)',
+    () async {
+      final registry = await AssetCatalog.loadRegistry();
 
-    final first = await makeProvider(registry);
-    await first.setDetector('v26m_e40');
-    await first.setDepth('depthanything');
-    await first.setConfidenceThreshold(0.3);
-    await first.setDensityOverride('tomato', 950);
-    await first.setShowBoxes(true);
-    await first.setGeminiApiKey('secret');
+      final first = await makeProvider(registry);
+      await first.setDetector('v26m_e40');
+      await first.setDepth('depthanything');
+      await first.setConfidenceThreshold(0.3);
+      await first.setDensityOverride('tomato', 950);
+      await first.setShowBoxes(true);
+      await first.setGeminiApiKey('secret');
 
-    // A new repository + provider reading the same backing stores.
-    final second = await makeProvider(registry);
+      // A new repository + provider reading the same backing stores.
+      final second = await makeProvider(registry);
 
-    expect(second.settings.detectorId, 'v26m_e40');
-    expect(second.settings.depthId, 'depthanything');
-    expect(second.settings.confidenceThreshold, 0.3);
-    expect(second.settings.densityOverrides['tomato'], 950);
-    expect(second.settings.showBoxes, isTrue);
-    expect(second.settings.geminiApiKey, 'secret'); // from secure storage
-    expect(second.modelChoice.detectorId, 'v26m_e40');
-  });
+      expect(second.settings.detectorId, 'v26m_e40');
+      expect(second.settings.depthId, 'depthanything');
+      expect(second.settings.confidenceThreshold, 0.3);
+      expect(second.settings.densityOverrides['tomato'], 950);
+      expect(second.settings.showBoxes, isTrue);
+      expect(second.settings.geminiApiKey, 'secret'); // from secure storage
+      expect(second.modelChoice.detectorId, 'v26m_e40');
+    },
+  );
 
   test('the API key is not written to the shared_preferences blob', () async {
     final registry = await AssetCatalog.loadRegistry();

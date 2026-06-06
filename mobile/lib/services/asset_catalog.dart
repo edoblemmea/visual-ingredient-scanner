@@ -7,7 +7,7 @@ import '../models/model_registry.dart';
 /// Number of food classes the detectors emit. Must match `labels.txt` and
 /// `data/classes.yaml`; an out-of-step labels file would silently mislabel every
 /// detection, so we fail loudly at load.
-const int kExpectedClassCount = 86;
+const int kExpectedClassCount = 91;
 
 /// Bundled sample images the user can scan instead of taking a photo (wired
 /// into the scan screen in S10).

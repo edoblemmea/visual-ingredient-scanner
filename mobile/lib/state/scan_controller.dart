@@ -64,8 +64,10 @@ class ScanController extends ChangeNotifier {
     notifyListeners();
     try {
       await _ensureServices(settings);
-      final detections = await _detector!
-          .detect(image, confThreshold: settings.confidenceThreshold);
+      final detections = await _detector!.detect(
+        image,
+        confThreshold: settings.confidenceThreshold,
+      );
       final depthMap = await _depth!.estimate(image, focalPx: focalPx);
 
       _image = image;
@@ -94,8 +96,9 @@ class ScanController extends ChangeNotifier {
     if (result.isEmpty) return;
     _recipesLoading = true;
     notifyListeners();
-    final recipes = await RecipeService(apiKey: _settings.geminiApiKey)
-        .generate(result.ingredientWeights);
+    final recipes = await RecipeService(
+      apiKey: _settings.geminiApiKey,
+    ).generate(result.ingredientWeights);
     result = result.copyWith(recipes: recipes);
     _recipesLoading = false;
     notifyListeners();
@@ -114,10 +117,12 @@ class ScanController extends ChangeNotifier {
     _detector?.dispose();
     _depth?.dispose();
 
-    final det =
-        catalog.registry.detectors.firstWhere((d) => d.id == choice.detectorId);
-    final dep =
-        catalog.registry.depth.firstWhere((d) => d.id == choice.depthId);
+    final det = catalog.registry.detectors.firstWhere(
+      (d) => d.id == choice.detectorId,
+    );
+    final dep = catalog.registry.depth.firstWhere(
+      (d) => d.id == choice.depthId,
+    );
 
     _detector = await DetectorService.fromAsset(
       assetPath: det.asset,
@@ -128,6 +133,7 @@ class ScanController extends ChangeNotifier {
       assetPath: dep.asset,
       family: depthFamilyFromString(dep.family),
       float16: dep.float16,
+      externalData: dep.externalData,
     );
     _loadedChoice = choice;
   }
@@ -205,16 +211,16 @@ class ScanController extends ChangeNotifier {
     double depthScale = 1.0,
     List<Recipe> recipes = const [],
   }) {
-    final depth = depthScale == 1.0 ? depthMap : _rescaleDepth(depthMap, depthScale);
+    final depth = depthScale == 1.0
+        ? depthMap
+        : _rescaleDepth(depthMap, depthScale);
     final density = DensityService(
       baseline: baselineDensities,
       overrides: densityOverrides,
     );
-    final items = WeightService(densityService: density).estimate(
-      detections: detections,
-      depthMap: depth,
-      focalPx: focalPx,
-    );
+    final items = WeightService(
+      densityService: density,
+    ).estimate(detections: detections, depthMap: depth, focalPx: focalPx);
     return ScanResult.fromItems(items, recipes: recipes);
   }
 

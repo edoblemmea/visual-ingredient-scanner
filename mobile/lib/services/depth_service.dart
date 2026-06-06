@@ -1,7 +1,11 @@
+import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_onnxruntime/flutter_onnxruntime.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:image/image.dart' as img;
+import 'package:path_provider/path_provider.dart';
 
 import '../models/depth_map.dart';
 
@@ -34,9 +38,9 @@ class Metric3dInput {
 }
 
 /// Stage ② — metric depth over flutter_onnxruntime (ORT 1.22). Pure Dart port of
-/// `pipeline/depth.py`. The fp16 Metric3D model is fed via the runtime's native
-/// float16 conversion (`OrtValue.to(float16)`), and float16 output is read back
-/// as doubles by `asFlattenedList()` — no manual half-precision handling.
+/// `pipeline/depth.py`. Metric3D is de-canonicalised with the camera focal
+/// length; Depth Anything V2-S uses the metric-indoor checkpoint and returns
+/// metres directly.
 ///
 /// Pre/post-processing are pure static methods, unit-tested without inference.
 class DepthService {
@@ -72,11 +76,19 @@ class DepthService {
     required String assetPath,
     required DepthFamily family,
     bool float16 = false,
+    String? externalData,
   }) async {
-    final session = await OnnxRuntime().createSessionFromAsset(
-      assetPath,
-      options: OrtSessionOptions(intraOpNumThreads: 2),
-    );
+    final options = OrtSessionOptions(intraOpNumThreads: 2);
+    final session = externalData == null || kIsWeb
+        ? await OnnxRuntime().createSessionFromAsset(
+            assetPath,
+            options: options,
+          )
+        : await _createSessionWithExternalData(
+            assetPath: assetPath,
+            externalData: externalData,
+            options: options,
+          );
     // Metric3D emits multiple outputs; we only need the depth map.
     final outputName = session.outputNames.contains('predicted_depth')
         ? 'predicted_depth'
@@ -90,9 +102,33 @@ class DepthService {
     );
   }
 
+  static Future<OrtSession> _createSessionWithExternalData({
+    required String assetPath,
+    required String externalData,
+    required OrtSessionOptions options,
+  }) async {
+    final directory = await getTemporaryDirectory();
+    final modelFile = File(
+      '${directory.path}${Platform.pathSeparator}${assetPath.split('/').last}',
+    );
+    final dataFile = File(
+      '${directory.path}${Platform.pathSeparator}${externalData.split('/').last}',
+    );
+
+    await _extractAsset(assetPath, modelFile);
+    await _extractAsset(externalData, dataFile);
+    return OnnxRuntime().createSession(modelFile.path, options: options);
+  }
+
+  static Future<void> _extractAsset(String assetPath, File target) async {
+    await target.parent.create(recursive: true);
+    final data = await rootBundle.load(assetPath);
+    await target.writeAsBytes(data.buffer.asUint8List(), flush: true);
+  }
+
   /// Returns a metric depth map in metres at the original image resolution.
   /// [focalPx] is required by the Metric3D de-canonicalisation; Depth Anything
-  /// ignores it (its output is relative).
+  /// ignores it because the metric-indoor checkpoint already emits metres.
   Future<DepthMap> estimate(img.Image image, {required double focalPx}) {
     switch (family) {
       case DepthFamily.metric3d:
@@ -140,8 +176,13 @@ class DepthService {
       outH: daInputSize,
       outW: daInputSize,
     );
-    final resized =
-        bilinearResize(out, daInputSize, daInputSize, image.width, image.height);
+    final resized = bilinearResize(
+      out,
+      daInputSize,
+      daInputSize,
+      image.width,
+      image.height,
+    );
     return DepthMap(width: image.width, height: image.height, data: resized);
   }
 

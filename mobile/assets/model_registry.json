@@ -2,15 +2,21 @@
   "detectors": [
     {
       "id": "v26m_e30",
-      "label": "YOLO v26m · epoch30 (default)",
+      "label": "YOLO v26m · epoch30",
       "asset": "assets/models/epoch30.onnx",
+      "inputSize": 640
+    },
+    {
+      "id": "v26m_e40",
+      "label": "YOLO v26m · epoch40 (default)",
+      "asset": "assets/models/epoch40.onnx",
       "inputSize": 640,
       "default": true
     },
     {
-      "id": "v26m_e40",
-      "label": "YOLO v26m · epoch40",
-      "asset": "assets/models/epoch40.onnx",
+      "id": "v26m_best",
+      "label": "YOLO v26m · best",
+      "asset": "assets/models/food_detector_v26m_best.onnx",
       "inputSize": 640
     }
   ],
@@ -25,11 +31,10 @@
     },
     {
       "id": "depthanything",
-      "label": "Depth Anything V2-S (relative)",
+      "label": "Depth Anything V2-S (metric indoor)",
       "asset": "assets/models/depth_anything_v2_small.onnx",
       "family": "depthanything",
-      "externalData": "assets/models/depth_anything_v2_small.onnx.data",
-      "requiresManualDownload": true
+      "externalData": "assets/models/depth_anything_v2_small.onnx.data"
     }
   ]
 }

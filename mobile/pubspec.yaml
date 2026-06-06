@@ -65,10 +65,8 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  # Directory-style asset entries bundle every file present at build time, so a
-  # fresh clone missing the manually-downloaded depth_anything_v2_small.onnx.data
-  # (~99 MB, see README) still builds — the Depth Anything option is just disabled
-  # until that file is dropped into assets/models/.
+  # Directory-style asset entries bundle the ONNX models and any external-data
+  # sidecars that must sit beside them at runtime.
   assets:
     - assets/branding/
     - assets/model_registry.json

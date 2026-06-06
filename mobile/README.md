@@ -1,17 +1,27 @@
-# visual_ingredient_scanner
+# Foodie Lens Mobile
 
-A new Flutter project.
+Flutter app for on-device ingredient detection, metric depth estimation, weight
+estimation, and recipe generation.
 
-## Getting Started
+## Run
 
-This project is a starting point for a Flutter application.
+```bash
+flutter pub get
+flutter run
+```
 
-A few resources to get you started if this is your first Flutter project:
+## Bundled Models
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+Models are bundled as Flutter assets under `assets/models/`.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+| Model | Asset |
+|---|---|
+| YOLO v26m epoch30 | `assets/models/epoch30.onnx` |
+| YOLO v26m epoch40 (default) | `assets/models/epoch40.onnx` |
+| YOLO v26m best | `assets/models/food_detector_v26m_best.onnx` |
+| Metric3D ViT-S fp16 (default depth) | `assets/models/metric3d-vit-small-fp16.onnx` |
+| Depth Anything V2-S metric indoor | `assets/models/depth_anything_v2_small.onnx` plus `.onnx.data` |
+
+Depth Anything uses ONNX external data, so both
+`depth_anything_v2_small.onnx` and `depth_anything_v2_small.onnx.data` must stay
+beside each other in the asset bundle.

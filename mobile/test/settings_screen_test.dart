@@ -47,19 +47,19 @@ void main() {
 
   testWidgets('selecting a detector updates settings', (tester) async {
     final settings = await pumpSettings(tester);
-    expect(settings.modelChoice.detectorId, 'v26m_e30'); // default
+    expect(settings.modelChoice.detectorId, 'v26m_e40'); // default
 
-    await tester.tap(find.text('YOLO v26m · epoch40'));
+    await tester.tap(find.text('YOLO v26m · best'));
     await tester.pump();
 
-    expect(settings.settings.detectorId, 'v26m_e40');
+    expect(settings.settings.detectorId, 'v26m_best');
   });
 
   testWidgets('selecting a depth model updates settings', (tester) async {
     final settings = await pumpSettings(tester);
     expect(settings.modelChoice.depthId, 'metric3d'); // default
 
-    await tester.tap(find.text('Depth Anything V2-S (relative)'));
+    await tester.tap(find.text('Depth Anything V2-S (metric indoor)'));
     await tester.pump();
 
     expect(settings.settings.depthId, 'depthanything');

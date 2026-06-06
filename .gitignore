@@ -35,6 +35,3 @@ mobile/build/
 mobile/.dart_tool/
 mobile/.flutter-plugins
 mobile/.flutter-plugins-dependencies
-
-# Bundled model too close to GitHub's 100 MB file limit — download manually (see README)
-mobile/assets/models/depth_anything_v2_small.onnx.data

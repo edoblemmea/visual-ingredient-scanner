@@ -152,30 +152,16 @@ flutter run
 
 #### Bundled models
 
-The app compiles its CV models in as Flutter assets under `mobile/assets/`. The two
-detectors and the default depth model are committed to the repo (each < 100 MB):
+The app compiles its CV models in as Flutter assets under `mobile/assets/`.
 
 | Asset | Size | In git? |
 |---|---|---|
-| `assets/models/epoch30.onnx` (YOLO v26m, default detector) | ~78 MB | ✅ committed |
-| `assets/models/epoch40.onnx` (YOLO v26m, alt detector) | ~78 MB | ✅ committed |
+| `assets/models/epoch30.onnx` (YOLO v26m) | ~78 MB | ✅ committed |
+| `assets/models/epoch40.onnx` (YOLO v26m, default detector) | ~78 MB | ✅ committed |
+| `assets/models/food_detector_v26m_best.onnx` (YOLO v26m best) | ~78 MB | ✅ committed |
 | `assets/models/metric3d-vit-small-fp16.onnx` (default depth) | ~76 MB | ✅ committed |
-| `assets/models/depth_anything_v2_small.onnx` (alt depth, graph) | ~2 MB | ✅ committed |
-| `assets/models/depth_anything_v2_small.onnx.data` (alt depth, weights) | ~99 MB | ⛔ **manual download** |
-
-**Manual download — `depth_anything_v2_small.onnx.data`:** this ONNX external-data file
-holds the Depth Anything V2-S weights and is too close to GitHub's 100 MB per-file limit to
-commit, so it is gitignored. The app still builds and runs without it — the default Metric3D
-depth model works out of the box, and the **Depth Anything** option is simply unavailable
-until the file is present. To enable it, place the file at
-`mobile/assets/models/depth_anything_v2_small.onnx.data` by either:
-
-- copying it from this repo's local working tree at `models/depth/depth_anything_v2_small.onnx.data`, or
-- re-exporting it with `python training/export_depth_onnx.py` (writes to `models/depth/`), then copying it across.
-
-```bash
-cp models/depth/depth_anything_v2_small.onnx.data mobile/assets/models/
-```
+| `assets/models/depth_anything_v2_small.onnx` (Depth Anything V2-S metric indoor graph) | ~2 MB | ✅ committed |
+| `assets/models/depth_anything_v2_small.onnx.data` (Depth Anything V2-S metric indoor weights) | ~99 MB | ✅ committed |
 
 #### Run on an Android emulator
 
