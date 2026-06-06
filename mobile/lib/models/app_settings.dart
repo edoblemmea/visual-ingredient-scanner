@@ -4,6 +4,14 @@ import 'model_choice.dart';
 /// `pipeline/detect.py`.
 const double kDefaultConfidence = 0.10;
 
+/// Default Gemini recipe-generation model.
+const String kDefaultGeminiModel = 'gemini-3.1-flash-lite';
+
+String _geminiModelFromJson(Object? value) {
+  final model = value is String ? value.trim() : '';
+  return model.isEmpty ? kDefaultGeminiModel : model;
+}
+
 /// All user-controlled, persisted settings (S4 stores/restores this).
 ///
 /// [detectorId]/[depthId] are nullable: a fresh install has no choice yet and
@@ -16,6 +24,7 @@ class AppSettings {
     this.densityOverrides = const {},
     this.showBoxes = false,
     this.showDepthMap = false,
+    this.geminiModel = kDefaultGeminiModel,
     this.geminiApiKey = '',
   });
 
@@ -29,6 +38,9 @@ class AppSettings {
 
   final bool showBoxes;
   final bool showDepthMap;
+
+  /// Gemini model used for recipe generation.
+  final String geminiModel;
 
   /// Per-user Gemini key. **Never serialised into the shared_preferences blob**
   /// — it is stored separately in flutter_secure_storage (Keychain/Keystore) by
@@ -51,39 +63,42 @@ class AppSettings {
     Map<String, double>? densityOverrides,
     bool? showBoxes,
     bool? showDepthMap,
+    String? geminiModel,
     String? geminiApiKey,
-  }) =>
-      AppSettings(
-        detectorId: detectorId ?? this.detectorId,
-        depthId: depthId ?? this.depthId,
-        confidenceThreshold: confidenceThreshold ?? this.confidenceThreshold,
-        densityOverrides: densityOverrides ?? this.densityOverrides,
-        showBoxes: showBoxes ?? this.showBoxes,
-        showDepthMap: showDepthMap ?? this.showDepthMap,
-        geminiApiKey: geminiApiKey ?? this.geminiApiKey,
-      );
+  }) => AppSettings(
+    detectorId: detectorId ?? this.detectorId,
+    depthId: depthId ?? this.depthId,
+    confidenceThreshold: confidenceThreshold ?? this.confidenceThreshold,
+    densityOverrides: densityOverrides ?? this.densityOverrides,
+    showBoxes: showBoxes ?? this.showBoxes,
+    showDepthMap: showDepthMap ?? this.showDepthMap,
+    geminiModel: geminiModel ?? this.geminiModel,
+    geminiApiKey: geminiApiKey ?? this.geminiApiKey,
+  );
 
   /// Excludes [geminiApiKey] by design — it is persisted in secure storage.
   Map<String, dynamic> toJson() => {
-        'detectorId': detectorId,
-        'depthId': depthId,
-        'confidenceThreshold': confidenceThreshold,
-        'densityOverrides': densityOverrides,
-        'showBoxes': showBoxes,
-        'showDepthMap': showDepthMap,
-      };
+    'detectorId': detectorId,
+    'depthId': depthId,
+    'confidenceThreshold': confidenceThreshold,
+    'densityOverrides': densityOverrides,
+    'showBoxes': showBoxes,
+    'showDepthMap': showDepthMap,
+    'geminiModel': geminiModel,
+  };
 
   factory AppSettings.fromJson(Map<String, dynamic> json) => AppSettings(
-        detectorId: json['detectorId'] as String?,
-        depthId: json['depthId'] as String?,
-        confidenceThreshold:
-            (json['confidenceThreshold'] as num?)?.toDouble() ??
-                kDefaultConfidence,
-        densityOverrides: (json['densityOverrides'] as Map?)?.map(
-              (k, v) => MapEntry(k as String, (v as num).toDouble()),
-            ) ??
-            const {},
-        showBoxes: json['showBoxes'] as bool? ?? false,
-        showDepthMap: json['showDepthMap'] as bool? ?? false,
-      );
+    detectorId: json['detectorId'] as String?,
+    depthId: json['depthId'] as String?,
+    confidenceThreshold:
+        (json['confidenceThreshold'] as num?)?.toDouble() ?? kDefaultConfidence,
+    densityOverrides:
+        (json['densityOverrides'] as Map?)?.map(
+          (k, v) => MapEntry(k as String, (v as num).toDouble()),
+        ) ??
+        const {},
+    showBoxes: json['showBoxes'] as bool? ?? false,
+    showDepthMap: json['showDepthMap'] as bool? ?? false,
+    geminiModel: _geminiModelFromJson(json['geminiModel']),
+  );
 }

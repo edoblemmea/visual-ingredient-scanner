@@ -2,17 +2,15 @@ import 'dart:convert';
 
 import 'package:google_generative_ai/google_generative_ai.dart';
 
+import '../models/app_settings.dart' show kDefaultGeminiModel;
 import '../models/recipe.dart';
-
-/// Default Gemini model — matches CLAUDE.md stage ⑤.
-const String kGeminiModel = 'gemini-2.0-flash-lite';
 
 /// Stage ⑤ — recipe generation. Pure Dart port of `pipeline/recipe.py`: one
 /// Gemini call per scan, JSON array of 3 recipes, graceful degradation (returns
 /// an empty list when there is no API key, no ingredients, or the call fails —
 /// so a recipe outage never breaks the detection/weight results).
 class RecipeService {
-  RecipeService({required this.apiKey, this.modelName = kGeminiModel});
+  RecipeService({required this.apiKey, this.modelName = kDefaultGeminiModel});
 
   final String apiKey;
   final String modelName;
@@ -23,11 +21,13 @@ class RecipeService {
       final model = GenerativeModel(
         model: modelName,
         apiKey: apiKey,
-        generationConfig: GenerationConfig(responseMimeType: 'application/json'),
+        generationConfig: GenerationConfig(
+          responseMimeType: 'application/json',
+        ),
       );
-      final response = await model.generateContent(
-        [Content.text(buildPrompt(ingredientWeights))],
-      );
+      final response = await model.generateContent([
+        Content.text(buildPrompt(ingredientWeights)),
+      ]);
       final text = response.text;
       if (text == null) return const [];
       return parseRecipes(text);

@@ -65,7 +65,22 @@ void main() {
     expect(settings.settings.depthId, 'depthanything');
   });
 
-  // The API-key field sits below the fold of the scrollable list, so enterText
-  // can't reach its EditableText here; setGeminiApiKey + persistence is covered
-  // in settings_provider_test.dart instead.
+  testWidgets('editing the Gemini model updates settings', (tester) async {
+    final settings = await pumpSettings(tester);
+    expect(settings.settings.geminiModel, 'gemini-3.1-flash-lite');
+
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('geminiModelField')),
+      300,
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('geminiModelField')),
+      'gemini-3.1-pro',
+    );
+    await tester.pump();
+
+    expect(settings.settings.geminiModel, 'gemini-3.1-pro');
+  });
+
+  // The API-key field persistence is covered in settings_provider_test.dart.
 }

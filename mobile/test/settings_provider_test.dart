@@ -42,6 +42,7 @@ void main() {
       await first.setConfidenceThreshold(0.3);
       await first.setDensityOverride('tomato', 950);
       await first.setShowBoxes(true);
+      await first.setGeminiModel('gemini-3.1-pro');
       await first.setGeminiApiKey('secret');
 
       // A new repository + provider reading the same backing stores.
@@ -52,6 +53,7 @@ void main() {
       expect(second.settings.confidenceThreshold, 0.3);
       expect(second.settings.densityOverrides['tomato'], 950);
       expect(second.settings.showBoxes, isTrue);
+      expect(second.settings.geminiModel, 'gemini-3.1-pro');
       expect(second.settings.geminiApiKey, 'secret'); // from secure storage
       expect(second.modelChoice.detectorId, 'v26m_e40');
     },
@@ -65,6 +67,16 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     final blob = prefs.getString('app_settings_v1') ?? '';
     expect(blob.contains('secret'), isFalse);
+  });
+
+  test('blank Gemini model input resets to the default model', () async {
+    final registry = await AssetCatalog.loadRegistry();
+    final provider = await makeProvider(registry);
+
+    await provider.setGeminiModel('gemini-3.1-pro');
+    await provider.setGeminiModel('   ');
+
+    expect(provider.settings.geminiModel, 'gemini-3.1-flash-lite');
   });
 
   test('clearing a density override reverts that class', () async {

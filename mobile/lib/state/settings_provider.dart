@@ -14,9 +14,9 @@ class SettingsProvider extends ChangeNotifier {
     required SettingsRepository repository,
     required ModelRegistry registry,
     required AppSettings initial,
-  })  : _repository = repository,
-        _registry = registry,
-        _settings = initial;
+  }) : _repository = repository,
+       _registry = registry,
+       _settings = initial;
 
   final SettingsRepository _repository;
   final ModelRegistry _registry;
@@ -26,9 +26,9 @@ class SettingsProvider extends ChangeNotifier {
 
   /// Selected models, resolving null choices to the registry defaults (G5).
   ModelChoice get modelChoice => _settings.modelChoice(
-        _registry.defaultDetector.id,
-        _registry.defaultDepth.id,
-      );
+    _registry.defaultDetector.id,
+    _registry.defaultDepth.id,
+  );
 
   Future<void> _update(AppSettings next) async {
     _settings = next;
@@ -49,6 +49,15 @@ class SettingsProvider extends ChangeNotifier {
 
   Future<void> setShowDepthMap(bool value) =>
       _update(_settings.copyWith(showDepthMap: value));
+
+  Future<void> setGeminiModel(String value) {
+    final trimmed = value.trim();
+    return _update(
+      _settings.copyWith(
+        geminiModel: trimmed.isEmpty ? kDefaultGeminiModel : trimmed,
+      ),
+    );
+  }
 
   Future<void> setGeminiApiKey(String value) =>
       _update(_settings.copyWith(geminiApiKey: value));

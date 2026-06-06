@@ -34,7 +34,8 @@ class ScanController extends ChangeNotifier {
 
   // Cached scan state for the recompute path (G7).
   img.Image? _image;
-  Uint8List? _imageBytes; // original encoded capture, for the debug overlay (S14)
+  // Original encoded capture, for the debug overlay (S14).
+  Uint8List? _imageBytes;
   DepthMap? _depthMap; // raw model depth, before any distance correction
   double _focalPx = 0;
   List<Detection> _detections = const [];
@@ -55,7 +56,9 @@ class ScanController extends ChangeNotifier {
   /// for the depth-map debug view (S14).
   DepthMap? get depthMap => _depthMap == null
       ? null
-      : (_depthScale == 1.0 ? _depthMap : _rescaleDepth(_depthMap!, _depthScale));
+      : (_depthScale == 1.0
+            ? _depthMap
+            : _rescaleDepth(_depthMap!, _depthScale));
 
   bool _recipesLoading = false;
   bool get recipesLoading => _recipesLoading;
@@ -111,6 +114,7 @@ class ScanController extends ChangeNotifier {
     notifyListeners();
     final recipes = await RecipeService(
       apiKey: _settings.geminiApiKey,
+      modelName: _settings.geminiModel,
     ).generate(result.ingredientWeights);
     result = result.copyWith(recipes: recipes);
     _recipesLoading = false;

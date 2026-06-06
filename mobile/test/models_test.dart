@@ -2,19 +2,19 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:visual_ingredient_scanner/models/models.dart';
 
 WeightedItem _item(String name, double grams) => WeightedItem(
-      detection: Detection(
-        className: name,
-        confidence: 0.9,
-        bbox: const BBox(0, 0, 10, 10),
-      ),
-      shape: Shape.sphere,
-      depthM: 0.5,
-      realWidthM: 0.05,
-      realHeightM: 0.05,
-      volumeM3: 6.5e-5,
-      densityKgM3: 800,
-      weightG: grams,
-    );
+  detection: Detection(
+    className: name,
+    confidence: 0.9,
+    bbox: const BBox(0, 0, 10, 10),
+  ),
+  shape: Shape.sphere,
+  depthM: 0.5,
+  realWidthM: 0.05,
+  realHeightM: 0.05,
+  volumeM3: 6.5e-5,
+  densityKgM3: 800,
+  weightG: grams,
+);
 
 void main() {
   group('ScanResult.fromItems', () {
@@ -66,6 +66,7 @@ void main() {
         confidenceThreshold: 0.25,
         densityOverrides: {'tomato': 950},
         showBoxes: true,
+        geminiModel: 'gemini-3.1-pro',
         geminiApiKey: 'secret',
       );
 
@@ -76,14 +77,30 @@ void main() {
       expect(restored.densityOverrides['tomato'], 950);
       expect(restored.showBoxes, isTrue);
       expect(restored.showDepthMap, isFalse);
+      expect(restored.geminiModel, 'gemini-3.1-pro');
       // The API key is deliberately excluded from the JSON blob (secure storage).
       expect(json.containsKey('geminiApiKey'), isFalse);
       expect(restored.geminiApiKey, '');
     });
 
+    test('defaults Gemini model to 3.1 Flash Lite', () {
+      expect(AppSettings.defaults.geminiModel, 'gemini-3.1-flash-lite');
+      expect(
+        AppSettings.fromJson(const {}).geminiModel,
+        'gemini-3.1-flash-lite',
+      );
+      expect(
+        AppSettings.fromJson(const {'geminiModel': ''}).geminiModel,
+        'gemini-3.1-flash-lite',
+      );
+    });
+
     test('resolves model choice to registry defaults when unset', () {
       final choice = AppSettings.defaults.modelChoice('v26m_e30', 'metric3d');
-      expect(choice, const ModelChoice(detectorId: 'v26m_e30', depthId: 'metric3d'));
+      expect(
+        choice,
+        const ModelChoice(detectorId: 'v26m_e30', depthId: 'metric3d'),
+      );
     });
   });
 }

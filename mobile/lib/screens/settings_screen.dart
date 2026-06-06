@@ -83,9 +83,15 @@ class SettingsScreen extends StatelessWidget {
             onChanged: settings.setShowDepthMap,
           ),
           const Divider(),
+          const _SectionHeader('Gemini model'),
+          _GeminiModelField(settings: settings),
+          const _Hint('Used for recipe generation.'),
+          const Divider(),
           const _SectionHeader('Gemini API key'),
           _ApiKeyField(settings: settings),
-          const _Hint('Used only for recipe generation. Stored on this device.'),
+          const _Hint(
+            'Used only for recipe generation. Stored on this device.',
+          ),
           const SizedBox(height: 24),
         ],
       ),
@@ -115,6 +121,43 @@ class _ConfidenceSlider extends StatelessWidget {
   }
 }
 
+class _GeminiModelField extends StatefulWidget {
+  const _GeminiModelField({required this.settings});
+
+  final SettingsProvider settings;
+
+  @override
+  State<_GeminiModelField> createState() => _GeminiModelFieldState();
+}
+
+class _GeminiModelFieldState extends State<_GeminiModelField> {
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.settings.settings.geminiModel,
+  );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: TextField(
+        key: const ValueKey('geminiModelField'),
+        controller: _controller,
+        autocorrect: false,
+        enableSuggestions: false,
+        textInputAction: TextInputAction.done,
+        decoration: const InputDecoration(hintText: 'gemini-3.1-flash-lite'),
+        onChanged: widget.settings.setGeminiModel,
+      ),
+    );
+  }
+}
+
 class _ApiKeyField extends StatefulWidget {
   const _ApiKeyField({required this.settings});
 
@@ -125,8 +168,9 @@ class _ApiKeyField extends StatefulWidget {
 }
 
 class _ApiKeyFieldState extends State<_ApiKeyField> {
-  late final TextEditingController _controller =
-      TextEditingController(text: widget.settings.settings.geminiApiKey);
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.settings.settings.geminiApiKey,
+  );
   bool _obscured = true;
 
   @override
@@ -140,6 +184,7 @@ class _ApiKeyFieldState extends State<_ApiKeyField> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: TextField(
+        key: const ValueKey('geminiApiKeyField'),
         controller: _controller,
         obscureText: _obscured,
         autocorrect: false,
@@ -164,15 +209,14 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-        child: Text(
-          title,
-          style: Theme.of(context)
-              .textTheme
-              .titleSmall
-              ?.copyWith(color: Theme.of(context).colorScheme.primary),
-        ),
-      );
+    padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+    child: Text(
+      title,
+      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+        color: Theme.of(context).colorScheme.primary,
+      ),
+    ),
+  );
 }
 
 class _Hint extends StatelessWidget {
@@ -182,7 +226,7 @@ class _Hint extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-        child: Text(text, style: Theme.of(context).textTheme.bodySmall),
-      );
+    padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+    child: Text(text, style: Theme.of(context).textTheme.bodySmall),
+  );
 }
