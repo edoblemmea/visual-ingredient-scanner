@@ -24,11 +24,11 @@ const _androidAdaptiveForegrounds = {
 };
 
 const _androidLaunchImages = {
-  'android/app/src/main/res/mipmap-mdpi/launch_image.png': 128,
-  'android/app/src/main/res/mipmap-hdpi/launch_image.png': 192,
-  'android/app/src/main/res/mipmap-xhdpi/launch_image.png': 256,
-  'android/app/src/main/res/mipmap-xxhdpi/launch_image.png': 384,
-  'android/app/src/main/res/mipmap-xxxhdpi/launch_image.png': 512,
+  'android/app/src/main/res/mipmap-mdpi/launch_image.png': 192,
+  'android/app/src/main/res/mipmap-hdpi/launch_image.png': 288,
+  'android/app/src/main/res/mipmap-xhdpi/launch_image.png': 384,
+  'android/app/src/main/res/mipmap-xxhdpi/launch_image.png': 576,
+  'android/app/src/main/res/mipmap-xxxhdpi/launch_image.png': 768,
 };
 
 const _iosIcons = {
@@ -54,7 +54,7 @@ const _iosIcons = {
 void main() {
   final source = _drawIcon();
   final branding = _drawIconForeground();
-  final launchImage = _drawIconForeground(contentScale: 0.68);
+  final launchImage = _drawIconForeground(contentScale: 0.76);
   final foreground = _drawAdaptiveForeground();
 
   _writePng(
