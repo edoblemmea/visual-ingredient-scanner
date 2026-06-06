@@ -73,8 +73,8 @@ img.Image _drawAdaptiveForeground() {
   img.fill(image, color: _rgba(0, 0, 0, 0));
   final safeForeground = img.copyResize(
     raw,
-    width: (_canvas * 0.58).round(),
-    height: (_canvas * 0.58).round(),
+    width: (_canvas * 0.66).round(),
+    height: (_canvas * 0.66).round(),
     interpolation: img.Interpolation.average,
   );
   img.compositeImage(
