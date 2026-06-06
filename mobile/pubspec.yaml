@@ -42,6 +42,7 @@ dependencies:
   provider: ^6.1.5+1
   shared_preferences: ^2.5.5
   path_provider: ^2.1.5
+  ffi: ^2.2.0
 
 dev_dependencies:
   flutter_test:
@@ -73,6 +74,7 @@ flutter:
     - assets/model_registry.json
     - assets/models/
     - assets/data/
+    - assets/samples/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

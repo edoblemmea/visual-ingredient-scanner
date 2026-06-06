@@ -20,6 +20,7 @@
       "label": "Metric3D ViT-S (metric)",
       "asset": "assets/models/metric3d-vit-small-fp16.onnx",
       "family": "metric3d",
+      "precision": "float16",
       "default": true
     },
     {

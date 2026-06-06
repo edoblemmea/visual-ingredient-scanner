@@ -9,6 +9,14 @@ import '../models/model_registry.dart';
 /// detection, so we fail loudly at load.
 const int kExpectedClassCount = 86;
 
+/// Bundled sample images the user can scan instead of taking a photo (wired
+/// into the scan screen in S10).
+const List<String> kSampleImageAssets = [
+  'assets/samples/test_image1.jpeg',
+  'assets/samples/test_image2.jpeg',
+  'assets/samples/test_image3.jpeg',
+];
+
 /// Loads the bundled model registry, class labels, and density table from
 /// assets. Pure I/O — no model inference here.
 class AssetCatalog {

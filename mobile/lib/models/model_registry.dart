@@ -31,6 +31,7 @@ class DepthModel {
     required this.label,
     required this.asset,
     required this.family,
+    required this.float16,
     required this.externalData,
     required this.requiresManualDownload,
     required this.isDefault,
@@ -43,6 +44,9 @@ class DepthModel {
   /// `metric3d` or `depthanything` — selects the pre/post-processing branch.
   final String family;
 
+  /// True when the model has float16 I/O (needs the ort_float16 FFI path).
+  final bool float16;
+
   /// ONNX external-data file this model needs alongside [asset], if any.
   final String? externalData;
   final bool requiresManualDownload;
@@ -53,6 +57,7 @@ class DepthModel {
         label: json['label'] as String,
         asset: json['asset'] as String,
         family: json['family'] as String,
+        float16: json['precision'] == 'float16',
         externalData: json['externalData'] as String?,
         requiresManualDownload: json['requiresManualDownload'] as bool? ?? false,
         isDefault: json['default'] as bool? ?? false,

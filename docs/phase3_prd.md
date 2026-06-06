@@ -268,9 +268,27 @@ letterbox transform, threshold/rescale/label mapping, clamping, and label fallba
 `flutter analyze` clean, 27 tests pass.
 > commit: `feat(mobile): YOLO ONNX detector service`
 
-**S8 — DepthService.** `onnxruntime` session; `metric3d` + `depthanything` branches; EXIF focal;
-returns metric depth map + the focal used.
-> commit: `feat(mobile): depth service (Metric3D + Depth Anything)`
+**S8 — DepthService.** ✅ **DONE.**
+[DepthService](../mobile/lib/services/depth_service.dart) ports `depth.py`: Metric3D branch
+(keep-aspect resize into 616×1064, centre-pad with ImageNet mean in 0–255, normalise, un-pad,
+bilinear resize back, de-canonicalise `× focal×scale/1000`) and Depth Anything branch (518×518,
+ImageNet 0–1). Pre/post helpers (`preprocessMetric3d`, `preprocessDepthAnything`, `cropPlane`,
+`bilinearResize`, `metric3dDecanonFactor`) are pure static + unit-tested.
+
+> **Float16 resolved (key finding).** The committed `metric3d-vit-small-fp16.onnx` has float16
+> **input and output**, which the Dart onnxruntime package cannot create or read via its
+> high-level API. Rather than switch to the 150 MB fp32 model (manual download), S8 adds
+> [ort_float16.dart](../mobile/lib/services/ort_float16.dart): a pure-Dart IEEE-754 binary16
+> codec plus FFI helpers that create a float16 input tensor and read the float16 output through
+> the ORT C API (`OrtEnv.instance.ortApiPtr`, `CreateTensorWithDataAsOrtValue`/
+> `GetTensorMutableData`), using the public `ONNXTensorElementDataType.float16`. So the 72 MB
+> fp16 Metric3D **works out of the box** — no fp32 download. The registry carries
+> `"precision":"float16"` (→ `DepthModel.float16` → `DepthService.fromAsset(float16:)`).
+
+Codec verified against known binary16 bit patterns (1.0→0x3C00, etc.) and round-trips; the FFI
+create/read can only be exercised with native ORT (on-device, S9/S17). `flutter analyze` clean,
+38 tests pass.
+> commit: `feat(mobile): depth service (Metric3D + Depth Anything, float16 support)`
 
 **S9 — ScanController + Isolate.** Orchestrate capture → detect → depth → density → weight on a
 background Isolate; **cache** detections + raw depth map + focal in `ScanResult` for cheap
