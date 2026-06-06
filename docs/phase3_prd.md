@@ -152,7 +152,12 @@ overrides, visualisation toggles, and Gemini API key. Restored on launch (G4).
 
 ### FR8 — Recipes
 `RecipeService` via `google_generative_ai`, `gemini-2.0-flash-lite`, JSON-validated 3 recipes,
-degrades to a "no recipes" state offline. API key from Settings.
+degrades to a "Recipe service not available right now. Try again later." state offline.
+**API key is per-user**: entered in Settings and stored in `flutter_secure_storage`
+(Keychain/Keystore) — never bundled in the app and never written to the plaintext prefs blob, so
+there is no shared secret to extract by reverse-engineering. (No `.env` in the app: a bundled key
+is always extractable; the serverless design rules out a backend proxy, so per-user keys are the
+secure option.)
 
 ---
 
@@ -193,7 +198,7 @@ are I/O-verified.
 **S1 — Flutter scaffold.** ✅ **DONE.** Created `mobile/` via
 `flutter create --org edu.upc.fib.cv --project-name visual_ingredient_scanner --platforms=android,ios`
 (Flutter 3.41.9 / Dart 3.11.5). Folder layout `lib/{screens,services,models,widgets}`; deps added
-(`camera`, `image`, `onnxruntime`, `google_generative_ai`, `flutter_dotenv`, `provider`,
+(`camera`, `image`, `onnxruntime`, `google_generative_ai`, `flutter_secure_storage`, `provider`,
 `shared_preferences`, `path_provider`); `analysis_options.yaml` (flutter_lints) in place. App boots
 to `HomeScreen` with a route into a `SettingsScreen` placeholder. `flutter analyze` clean; smoke
 test passes.
@@ -328,12 +333,23 @@ parse failure (pure helpers unit-tested). The [ScanController](../mobile/lib/sta
 runs it as stage ⑤ **after** the weights are shown (separate `recipesLoading` flag, non-blocking),
 with `regenerateRecipes()` for on-demand refresh. [ResultScreen](../mobile/lib/screens/result_screen.dart)
 shows a recipes section: spinner while loading, recipe cards (name, servings, ingredient chips,
-numbered steps), or a "add a Gemini API key in Settings" hint when empty. API key read from
-settings (the entry field lands in S12). `flutter analyze` clean, 52 tests pass.
+numbered steps), or a "Recipe service not available right now. Try again later." message when
+empty (with a hint to set the key in Settings). API key read from the per-user secure-storage value.
+`flutter analyze` clean.
 > commit: `feat(mobile): Gemini recipe generation and result cards`
 
-**S12 — SettingsScreen: model selection.** Detector + depth radio pickers from registry; confidence
-slider; persisted; applied next scan (G5).
+**S12 — SettingsScreen: model selection.** ✅ **DONE.**
+[SettingsScreen](../mobile/lib/screens/settings_screen.dart) replaces the placeholder: detector and
+depth `RadioGroup` pickers from the registry (depth options flag "needs manual download" for Depth
+Anything), a confidence slider (0.05–0.9), and an obscured Gemini API-key field. All wired to
+`SettingsProvider` so changes persist (G4) and apply on the next scan (G5); the API key feeds
+RecipeService (closes the S11 gap). **Security:** the key is stored in `flutter_secure_storage`
+(Keychain/Keystore) and explicitly excluded from the `shared_preferences` JSON blob — per-user, no
+bundled shared secret, nothing to reverse-engineer (chose this over `.env`-in-app, which is always
+extractable). Used the modern `RadioGroup` ancestor API (RadioListTile's `groupValue`/`onChanged`
+are deprecated in Flutter 3.41). Widget tests verify detector/depth selection flows through the
+provider; a provider test asserts the key never lands in the prefs blob; `flutter analyze` clean,
+55 tests pass.
 > commit: `feat(mobile): settings screen with detector/depth model selection`
 
 **S13 — Density editor.** Searchable per-class kg/m³ editor with per-row + global reset;
@@ -361,8 +377,9 @@ update report.
 
 ## 8. Dependencies (pubspec)
 
-`camera`, `image` (EXIF + pixel ops + draw), `onnxruntime`, `google_generative_ai`,
-`flutter_dotenv`, `provider`, `shared_preferences`, `path_provider`.
+`camera`, `image` (EXIF + pixel ops + draw), `onnxruntime`, `ffi` (float16 tensors),
+`google_generative_ai`, `flutter_secure_storage` (API key at rest), `provider`,
+`shared_preferences`, `path_provider`.
 
 ---
 

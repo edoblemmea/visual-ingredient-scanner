@@ -20,8 +20,12 @@ class _Boot {
 Future<_Boot> _bootstrap() async {
   final catalog = await AppCatalog.load();
   final repository = await SettingsRepository.create();
-  final settings =
-      SettingsProvider(repository: repository, registry: catalog.registry);
+  final initial = await repository.load();
+  final settings = SettingsProvider(
+    repository: repository,
+    registry: catalog.registry,
+    initial: initial,
+  );
   return _Boot(catalog, settings);
 }
 

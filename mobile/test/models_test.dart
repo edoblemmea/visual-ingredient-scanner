@@ -69,13 +69,16 @@ void main() {
         geminiApiKey: 'secret',
       );
 
-      final restored = AppSettings.fromJson(settings.toJson());
+      final json = settings.toJson();
+      final restored = AppSettings.fromJson(json);
       expect(restored.detectorId, 'v26m_e40');
       expect(restored.confidenceThreshold, 0.25);
       expect(restored.densityOverrides['tomato'], 950);
       expect(restored.showBoxes, isTrue);
       expect(restored.showDepthMap, isFalse);
-      expect(restored.geminiApiKey, 'secret');
+      // The API key is deliberately excluded from the JSON blob (secure storage).
+      expect(json.containsKey('geminiApiKey'), isFalse);
+      expect(restored.geminiApiKey, '');
     });
 
     test('resolves model choice to registry defaults when unset', () {

@@ -114,10 +114,20 @@ class _RecipesSection extends StatelessWidget {
             ),
           )
         else if (recipes.isEmpty)
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: Text(
-              'No recipes. Add a Gemini API key in Settings to get suggestions.',
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Recipe service not available right now. Try again later.',
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Tip: set your Gemini API key in Settings.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
             ),
           )
         else

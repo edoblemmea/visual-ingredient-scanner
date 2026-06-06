@@ -13,10 +13,10 @@ class SettingsProvider extends ChangeNotifier {
   SettingsProvider({
     required SettingsRepository repository,
     required ModelRegistry registry,
-    AppSettings? initial,
+    required AppSettings initial,
   })  : _repository = repository,
         _registry = registry,
-        _settings = initial ?? repository.load();
+        _settings = initial;
 
   final SettingsRepository _repository;
   final ModelRegistry _registry;

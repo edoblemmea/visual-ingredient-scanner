@@ -29,6 +29,10 @@ class AppSettings {
 
   final bool showBoxes;
   final bool showDepthMap;
+
+  /// Per-user Gemini key. **Never serialised into the shared_preferences blob**
+  /// — it is stored separately in flutter_secure_storage (Keychain/Keystore) by
+  /// SettingsRepository, so no secret lands in plaintext prefs.
   final String geminiApiKey;
 
   static const AppSettings defaults = AppSettings();
@@ -59,6 +63,7 @@ class AppSettings {
         geminiApiKey: geminiApiKey ?? this.geminiApiKey,
       );
 
+  /// Excludes [geminiApiKey] by design — it is persisted in secure storage.
   Map<String, dynamic> toJson() => {
         'detectorId': detectorId,
         'depthId': depthId,
@@ -66,7 +71,6 @@ class AppSettings {
         'densityOverrides': densityOverrides,
         'showBoxes': showBoxes,
         'showDepthMap': showDepthMap,
-        'geminiApiKey': geminiApiKey,
       };
 
   factory AppSettings.fromJson(Map<String, dynamic> json) => AppSettings(
@@ -81,6 +85,5 @@ class AppSettings {
             const {},
         showBoxes: json['showBoxes'] as bool? ?? false,
         showDepthMap: json['showDepthMap'] as bool? ?? false,
-        geminiApiKey: json['geminiApiKey'] as String? ?? '',
       );
 }

@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:visual_ingredient_scanner/services/recipe_service.dart';
 
 void main() {
+
   group('buildPrompt', () {
     test('lists ingredients with rounded grams', () {
       final prompt = RecipeService.buildPrompt({'tomato': 199.6, 'onion': 50.0});
