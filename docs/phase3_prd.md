@@ -255,8 +255,17 @@ re-runs cheaply for G7. **Parity verified**: reference numbers generated from `p
 > (`…×depth_m×0.5`) — the running code is authoritative for parity.
 > commit: `feat(mobile): weight estimation (pinhole + shapes) with parity tests`
 
-**S7 — DetectorService.** `onnxruntime` session for the selected detector; letterbox preprocess;
-decode `[1,300,6]`; threshold; rescale to original px.
+**S7 — DetectorService.** ✅ **DONE.**
+[ort_runtime.dart](../mobile/lib/services/ort_runtime.dart) initialises `OrtEnv` once (shared by
+detector + depth). [DetectorService](../mobile/lib/services/detector_service.dart): loads the
+selected ONNX from assets via `OrtSession.fromBuffer`; `preprocess` does aspect-preserving
+letterbox into 640×640 with centre grey (114) padding, written CHW RGB normalised 0–1 as a
+`Float32List`; `decodeDetections` thresholds the NMS-baked `[1,300,6]` rows (default conf 0.10),
+un-letterboxes boxes back to original px, clamps to bounds, and maps class ids to labels
+(`class_<id>` fallback). Preprocess/decode are pure static methods so they're unit-tested without
+native inference; `detect()` glues them with proper ORT tensor/run/output release. Tests cover the
+letterbox transform, threshold/rescale/label mapping, clamping, and label fallback;
+`flutter analyze` clean, 27 tests pass.
 > commit: `feat(mobile): YOLO ONNX detector service`
 
 **S8 — DepthService.** `onnxruntime` session; `metric3d` + `depthanything` branches; EXIF focal;
