@@ -241,8 +241,18 @@ Tests cover resolution order, baseline-vs-override, and list mapping; `flutter a
 tests pass.
 > commit: `feat(mobile): density service with editable overrides`
 
-**S6 — WeightService (pure Dart).** Port pinhole + shape heuristics. Add unit tests asserting
-parity with Python on a few fixtures (same bbox+depth+density → same grams).
+**S6 — WeightService (pure Dart).** ✅ **DONE.**
+[DepthMap](../mobile/lib/models/depth_map.dart) value type with a `medianIn(bbox)` that matches
+`np.median` (integer half-open slicing, averages the two middle values for even counts).
+[WeightService](../mobile/lib/services/weight_service.dart) ports `estimate_weights` verbatim:
+sphere/cylinder class sets copied from weight.py, pinhole `real=(px/focal)×depth`, depth clamp
+[0.1, 10] m, box volume `w·h·max(w,h)·0.5`, `weight_g = vol×density×1000`; static and pure so it
+re-runs cheaply for G7. **Parity verified**: reference numbers generated from `pipeline/weight.py`
+(focal 800 px) for sphere/cylinder/box, the even-count median (0.55 m), and the depth clamp
+(50→10 m) all match within 1e-6; empty-ROI skip covered. `flutter analyze` clean, 23 tests pass.
+
+> Note: the box formula follows the **code** (`w·h·max(w,h)·0.5`), not CLAUDE.md's prose
+> (`…×depth_m×0.5`) — the running code is authoritative for parity.
 > commit: `feat(mobile): weight estimation (pinhole + shapes) with parity tests`
 
 **S7 — DetectorService.** `onnxruntime` session for the selected detector; letterbox preprocess;
