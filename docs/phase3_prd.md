@@ -232,8 +232,13 @@ Tests cover persistence across provider instances (G4), default resolution, over
 and listener notification; `flutter analyze` clean, 14 tests pass.
 > commit: `feat(mobile): persistent settings repository`
 
-**S5 — DensityService.** Load baseline JSON, merge persisted overrides, lookup with 800
-fallback.
+**S5 — DensityService.** ✅ **DONE.**
+[DensityService](../mobile/lib/services/density_service.dart) — immutable, sendable to the scan
+isolate. Resolution order override → baseline → `kDefaultDensity` (800, matching `density.py`/
+`weight.py`); exposes `densityFor`, `baselineFor`/`isOverridden` (for the S13 editor's reset), and
+`densitiesFor(list)`. Constructed per scan from `catalog.densities` + `settings.densityOverrides`.
+Tests cover resolution order, baseline-vs-override, and list mapping; `flutter analyze` clean, 17
+tests pass.
 > commit: `feat(mobile): density service with editable overrides`
 
 **S6 — WeightService (pure Dart).** Port pinhole + shape heuristics. Add unit tests asserting
