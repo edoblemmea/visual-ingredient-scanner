@@ -219,9 +219,17 @@ viz toggles, API key; JSON round-trip for S4). Barrel `models.dart`. Unit tests 
 Recipe JSON, and AppSettings round-trip; `flutter analyze` clean, 10 tests pass.
 > commit: `feat(mobile): core domain models`
 
-**S4 — Persistence.** `SettingsRepository` over `shared_preferences` (+ JSON file for the
-density override map): detector id, depth id, threshold, density overrides, toggles, API key.
-Loaded into a `ChangeNotifier` `SettingsProvider` at launch. (G4)
+**S4 — Persistence.** ✅ **DONE.**
+[SettingsRepository](../mobile/lib/services/settings_repository.dart) stores the whole
+`AppSettings` as one JSON blob in `shared_preferences` (corrupt/absent → defaults).
+[SettingsProvider](../mobile/lib/state/settings_provider.dart) (`ChangeNotifier`) holds live
+settings, notifies immediately, and write-throughs on every mutator (detector/depth/threshold/
+density overrides/toggles/API key); `modelChoice` resolves unset ids to registry defaults.
+`main.dart` refactored into an `AppBootstrap` that loads catalog + settings and wraps the
+`MaterialApp` in `MultiProvider` **above the Navigator** (so pushed routes can read them), with
+splash/error states. HomeScreen now reads from providers and shows the resolved model selection.
+Tests cover persistence across provider instances (G4), default resolution, override clearing,
+and listener notification; `flutter analyze` clean, 14 tests pass.
 > commit: `feat(mobile): persistent settings repository`
 
 **S5 — DensityService.** Load baseline JSON, merge persisted overrides, lookup with 800

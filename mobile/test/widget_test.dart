@@ -1,18 +1,18 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:visual_ingredient_scanner/main.dart';
 
 void main() {
-  testWidgets('App boots and loads the bundled catalog', (tester) async {
-    await tester.pumpWidget(const VisualIngredientScannerApp());
+  setUp(() => SharedPreferences.setMockInitialValues({}));
 
-    // AppBar title is shown immediately, while the catalog future resolves.
-    expect(find.text('Visual Ingredient Scanner'), findsOneWidget);
-
+  testWidgets('App boots and loads catalog + settings', (tester) async {
+    await tester.pumpWidget(const AppBootstrap());
     await tester.pumpAndSettle();
 
-    // Once assets are parsed, the home body reports what was loaded.
+    expect(find.text('Visual Ingredient Scanner'), findsOneWidget);
     expect(find.textContaining('classes loaded'), findsOneWidget);
+    expect(find.textContaining('Detector:'), findsOneWidget);
     expect(find.text('Scan (coming soon)'), findsOneWidget);
   });
 }
