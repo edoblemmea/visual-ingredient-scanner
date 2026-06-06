@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'screens/home_screen.dart';
 import 'services/asset_catalog.dart';
 import 'services/settings_repository.dart';
+import 'state/scan_controller.dart';
 import 'state/settings_provider.dart';
 
 void main() {
@@ -62,6 +63,9 @@ class _AppBootstrapState extends State<AppBootstrap> {
           providers: [
             Provider<AppCatalog>.value(value: boot.catalog),
             ChangeNotifierProvider<SettingsProvider>.value(value: boot.settings),
+            ChangeNotifierProvider<ScanController>(
+              create: (_) => ScanController(catalog: boot.catalog),
+            ),
           ],
           child: const VisualIngredientScannerApp(),
         );

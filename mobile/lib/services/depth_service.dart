@@ -96,7 +96,7 @@ class DepthService {
   /// Returns a metric depth map in metres at the original image resolution.
   /// [focalPx] is required by the Metric3D de-canonicalisation; Depth Anything
   /// ignores it (its output is relative).
-  DepthMap estimate(img.Image image, {required double focalPx}) {
+  Future<DepthMap> estimate(img.Image image, {required double focalPx}) {
     switch (family) {
       case DepthFamily.metric3d:
         return _estimateMetric3d(image, focalPx);
@@ -105,9 +105,9 @@ class DepthService {
     }
   }
 
-  DepthMap _estimateMetric3d(img.Image image, double focalPx) {
+  Future<DepthMap> _estimateMetric3d(img.Image image, double focalPx) async {
     final pre = preprocessMetric3d(image);
-    final out = _infer(
+    final out = await _infer(
       pre.data,
       [1, 3, m3dInputH, m3dInputW],
       outH: m3dInputH,
@@ -135,9 +135,9 @@ class DepthService {
     return DepthMap(width: image.width, height: image.height, data: resized);
   }
 
-  DepthMap _estimateDepthAnything(img.Image image) {
+  Future<DepthMap> _estimateDepthAnything(img.Image image) async {
     final data = preprocessDepthAnything(image);
-    final out = _infer(
+    final out = await _infer(
       data,
       [1, 3, daInputSize, daInputSize],
       outH: daInputSize,
@@ -148,20 +148,21 @@ class DepthService {
     return DepthMap(width: image.width, height: image.height, data: resized);
   }
 
-  ({Float32List values, int h, int w}) _infer(
+  Future<({Float32List values, int h, int w})> _infer(
     Float32List data,
     List<int> shape, {
     required int outH,
     required int outW,
-  }) {
+  }) async {
     final input = float16
         ? createFloat16InputTensor(data, shape)
         : OrtValueTensor.createTensorWithDataList(data, shape);
     final runOptions = OrtRunOptions();
     List<OrtValue?>? outputs;
     try {
-      outputs = _session.run(runOptions, {_inputName: input}, ['predicted_depth']);
-      final output = outputs.first!;
+      outputs =
+          await _session.runAsync(runOptions, {_inputName: input}, ['predicted_depth']);
+      final output = outputs!.first!;
       if (float16) {
         return (values: readFloat16OutputTensor(output, outH * outW), h: outH, w: outW);
       }

@@ -71,10 +71,12 @@ class DetectorService {
     );
   }
 
-  List<Detection> detect(
+  /// Runs inference on a background isolate (ORT RunAsync) so the UI thread
+  /// stays free. Preprocess/decode are synchronous Dart (comparatively cheap).
+  Future<List<Detection>> detect(
     img.Image image, {
     double confThreshold = kDefaultConfidence,
-  }) {
+  }) async {
     final input = preprocess(image, inputSize);
     final inputTensor = OrtValueTensor.createTensorWithDataList(
       input.data,
@@ -83,8 +85,8 @@ class DetectorService {
     final runOptions = OrtRunOptions();
     List<OrtValue?>? outputs;
     try {
-      outputs = _session.run(runOptions, {_inputName: inputTensor});
-      final rows = _toRows(outputs.first?.value);
+      outputs = await _session.runAsync(runOptions, {_inputName: inputTensor});
+      final rows = _toRows(outputs!.first?.value);
       return decodeDetections(
         rows,
         scale: input.scale,

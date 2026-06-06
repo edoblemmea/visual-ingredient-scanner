@@ -290,9 +290,19 @@ create/read can only be exercised with native ORT (on-device, S9/S17). `flutter 
 38 tests pass.
 > commit: `feat(mobile): depth service (Metric3D + Depth Anything, float16 support)`
 
-**S9 — ScanController + Isolate.** Orchestrate capture → detect → depth → density → weight on a
-background Isolate; **cache** detections + raw depth map + focal in `ScanResult` for cheap
-recompute (G7); expose a `recompute()` that re-runs only WeightService.
+**S9 — ScanController + Isolate.** ✅ **DONE.**
+[ScanController](../mobile/lib/state/scan_controller.dart) (`ChangeNotifier`, provided in
+`main.dart`) orchestrates detect → depth → density → weight with `ScanStatus`
+(idle/running/success/error). Model inference runs **off the UI thread** via the services'
+`runAsync` — confirmed `OrtIsolateSession` passes the session *address* to a spawned isolate
+(native pointers are process-global) and reuses the `fromBuffer` session with no model reload, so
+detector/depth `detect`/`estimate` are now `Future`-returning. Services are loaded lazily and
+rebuilt only when the `ModelChoice` changes (G5). It **caches** the image, raw depth map, focal,
+and detections, and exposes the G7 recompute path: `recompute()`/`updateSettings`/
+`applyDistanceCorrection` (S15 hook)/`addManualDetection` (S16 hook) all re-run only the pure-Dart
+weight pipeline on the cache. The core is a pure static `computeResult` (depth-scale → density →
+weight → aggregate), unit-tested for aggregation, density-override proportionality, depth³ scaling,
+manual detections, and default-density fallback. `flutter analyze` clean, 43 tests pass.
 > commit: `feat(mobile): scan orchestration on isolate with recompute path`
 
 **S10 — ScanScreen + ResultScreen (baseline).** Camera preview + capture; ingredient/weight list
