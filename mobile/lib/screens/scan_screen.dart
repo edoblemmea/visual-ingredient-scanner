@@ -104,7 +104,12 @@ class _ScanScreenState extends State<ScanScreen> {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const ResultScreen()),
     );
-    controller.scan(decoded, focalPx: focalPx, settings: settings);
+    controller.scan(
+      decoded,
+      focalPx: focalPx,
+      settings: settings,
+      imageBytes: bytes,
+    );
   }
 
   void _showError(String message) {

@@ -1,13 +1,19 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../models/app_settings.dart';
+import '../models/depth_map.dart';
 import '../models/recipe.dart';
-import '../models/scan_result.dart';
 import '../models/weighted_item.dart';
+import '../services/depth_visualizer.dart';
 import '../state/scan_controller.dart';
+import '../state/settings_provider.dart';
+import '../widgets/bbox_overlay.dart';
 
-/// Shows the scan outcome: per-ingredient weights with expandable detail.
-/// Recipes are added in S11; visualisations/corrections in S14–S16.
+/// Shows the scan outcome: per-ingredient weights with expandable detail,
+/// recipes, and optional debug overlays (bbox / depth map, FR5).
 class ResultScreen extends StatelessWidget {
   const ResultScreen({super.key});
 
@@ -44,8 +50,8 @@ class ResultScreen extends StatelessWidget {
               return const _Centered(child: Text('No scan yet.'));
             case ScanStatus.success:
               return _ResultList(
-                result: controller.result,
-                recipesLoading: controller.recipesLoading,
+                controller: controller,
+                settings: context.watch<SettingsProvider>().settings,
               );
           }
         },
@@ -55,19 +61,29 @@ class ResultScreen extends StatelessWidget {
 }
 
 class _ResultList extends StatelessWidget {
-  const _ResultList({required this.result, required this.recipesLoading});
+  const _ResultList({required this.controller, required this.settings});
 
-  final ScanResult result;
-  final bool recipesLoading;
+  final ScanController controller;
+  final AppSettings settings;
 
   @override
   Widget build(BuildContext context) {
+    final result = controller.result;
     if (result.isEmpty) {
       return const _Centered(child: Text('No ingredients detected.'));
     }
     final items = result.items;
+    final showDebug = settings.showBoxes || settings.showDepthMap;
     return ListView(
       children: [
+        if (showDebug)
+          _DebugViews(
+            imageBytes: controller.imageBytes,
+            depthMap: controller.depthMap,
+            items: items,
+            showBoxes: settings.showBoxes,
+            showDepthMap: settings.showDepthMap,
+          ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
           child: Text(
@@ -77,8 +93,120 @@ class _ResultList extends StatelessWidget {
         ),
         for (final item in items) _ItemTile(item: item),
         const Divider(height: 24),
-        _RecipesSection(recipes: result.recipes, loading: recipesLoading),
+        _RecipesSection(recipes: result.recipes, loading: controller.recipesLoading),
       ],
+    );
+  }
+}
+
+/// Debug overlays (FR5): the captured image with detection boxes, and a
+/// colour-mapped depth map. Hidden unless the matching setting is on. The depth
+/// PNG is rendered once per depth map and cached.
+class _DebugViews extends StatefulWidget {
+  const _DebugViews({
+    required this.imageBytes,
+    required this.depthMap,
+    required this.items,
+    required this.showBoxes,
+    required this.showDepthMap,
+  });
+
+  final Uint8List? imageBytes;
+  final DepthMap? depthMap;
+  final List<WeightedItem> items;
+  final bool showBoxes;
+  final bool showDepthMap;
+
+  @override
+  State<_DebugViews> createState() => _DebugViewsState();
+}
+
+class _DebugViewsState extends State<_DebugViews> {
+  Uint8List? _depthPng;
+  DepthMap? _renderedFor;
+
+  @override
+  void initState() {
+    super.initState();
+    _maybeRenderDepth();
+  }
+
+  @override
+  void didUpdateWidget(_DebugViews old) {
+    super.didUpdateWidget(old);
+    _maybeRenderDepth();
+  }
+
+  Future<void> _maybeRenderDepth() async {
+    final depth = widget.depthMap;
+    if (!widget.showDepthMap || depth == null || identical(depth, _renderedFor)) {
+      return;
+    }
+    _renderedFor = depth;
+    final png = await Future(() => renderDepthMapPng(depth));
+    if (mounted) setState(() => _depthPng = png);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final children = <Widget>[];
+
+    if (widget.showBoxes && widget.imageBytes != null) {
+      final depth = widget.depthMap;
+      children.add(_LabeledView(
+        label: 'Detections',
+        child: AspectRatio(
+          aspectRatio: depth != null && depth.height > 0
+              ? depth.width / depth.height
+              : 1,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.memory(widget.imageBytes!, fit: BoxFit.fill),
+              if (depth != null)
+                CustomPaint(
+                  painter: BoxOverlayPainter(
+                    items: widget.items,
+                    imageWidth: depth.width,
+                    imageHeight: depth.height,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ));
+    }
+
+    if (widget.showDepthMap && _depthPng != null) {
+      children.add(_LabeledView(
+        label: 'Depth map (near → far: blue → red)',
+        child: Image.memory(_depthPng!, fit: BoxFit.contain),
+      ));
+    }
+
+    if (children.isEmpty) return const SizedBox.shrink();
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: children);
+  }
+}
+
+class _LabeledView extends StatelessWidget {
+  const _LabeledView({required this.label, required this.child});
+
+  final String label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: Theme.of(context).textTheme.labelMedium),
+          const SizedBox(height: 4),
+          ClipRRect(borderRadius: BorderRadius.circular(8), child: child),
+        ],
+      ),
     );
   }
 }

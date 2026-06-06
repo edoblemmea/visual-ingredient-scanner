@@ -364,8 +364,17 @@ covers search filtering. `flutter analyze` clean, 56 tests pass.
 > needs). Needs on-device re-verification.
 > commit: `feat(mobile): editable density table screen`
 
-**S14 — Visualisation toggles (hidden by default).** Bounding-box overlay + colour-mapped
-depth-map view, behind a debug toggle; toggle state persisted. (FR5)
+**S14 — Visualisation toggles (hidden by default).** ✅ **DONE.**
+Settings "Developer view" section with two `SwitchListTile`s (show bounding boxes / show depth
+map), wired to the already-persisted `showBoxes`/`showDepthMap` flags (G4), off by default.
+[ResultScreen](../mobile/lib/screens/result_screen.dart) gains a `_DebugViews` section: the
+captured image (`controller.imageBytes`) with a [BoxOverlayPainter](../mobile/lib/widgets/bbox_overlay.dart)
+drawing detection boxes + weight labels (manual boxes in orange), and a jet-coloured depth map via
+[depth_visualizer.dart](../mobile/lib/services/depth_visualizer.dart) (`renderDepthMapPng`,
+downsampled + min/max-normalised, rendered once per depth map and cached). The controller now
+exposes `imageBytes` and the effective (distance-corrected) `depthMap`; `scan()` caches the source
+bytes. Depth-colorizer unit-tested (downscale size, near→blue/far→red, constant-depth guard).
+`flutter analyze` clean, 55 tests pass.
 > commit: `feat(mobile): optional bbox overlay and depth-map view`
 
 **S15 — Distance correction slider.** Pick an object, set real distance, rescale cached depth,

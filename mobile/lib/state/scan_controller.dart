@@ -34,6 +34,7 @@ class ScanController extends ChangeNotifier {
 
   // Cached scan state for the recompute path (G7).
   img.Image? _image;
+  Uint8List? _imageBytes; // original encoded capture, for the debug overlay (S14)
   DepthMap? _depthMap; // raw model depth, before any distance correction
   double _focalPx = 0;
   List<Detection> _detections = const [];
@@ -42,9 +43,19 @@ class ScanController extends ChangeNotifier {
   final List<Detection> _manualDetections = []; // S16
 
   img.Image? get image => _image;
+
+  /// Original captured image bytes (jpeg/png) for display in the bbox overlay.
+  Uint8List? get imageBytes => _imageBytes;
+
   bool get hasScan => _depthMap != null;
   double get depthScale => _depthScale;
   List<Detection> get manualDetections => List.unmodifiable(_manualDetections);
+
+  /// The depth map as currently used for weights (raw × distance correction),
+  /// for the depth-map debug view (S14).
+  DepthMap? get depthMap => _depthMap == null
+      ? null
+      : (_depthScale == 1.0 ? _depthMap : _rescaleDepth(_depthMap!, _depthScale));
 
   bool _recipesLoading = false;
   bool get recipesLoading => _recipesLoading;
@@ -58,6 +69,7 @@ class ScanController extends ChangeNotifier {
     img.Image image, {
     required double focalPx,
     required AppSettings settings,
+    Uint8List? imageBytes,
   }) async {
     status = ScanStatus.running;
     error = null;
@@ -71,6 +83,7 @@ class ScanController extends ChangeNotifier {
       final depthMap = await _depth!.estimate(image, focalPx: focalPx);
 
       _image = image;
+      _imageBytes = imageBytes;
       _focalPx = focalPx;
       _detections = detections;
       _depthMap = depthMap;
