@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../services/asset_catalog.dart';
 import '../state/settings_provider.dart';
+import 'scan_screen.dart';
 import 'settings_screen.dart';
 
 /// Landing screen. Reads the bundled catalog and live settings from providers
@@ -58,8 +59,10 @@ class HomeScreen extends StatelessWidget {
             const SizedBox(height: 24),
             FilledButton.icon(
               icon: const Icon(Icons.camera_alt),
-              label: const Text('Scan (coming soon)'),
-              onPressed: null,
+              label: const Text('Scan'),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const ScanScreen()),
+              ),
             ),
           ],
         ),

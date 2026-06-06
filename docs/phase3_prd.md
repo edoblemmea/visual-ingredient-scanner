@@ -305,8 +305,18 @@ weight → aggregate), unit-tested for aggregation, density-override proportiona
 manual detections, and default-density fallback. `flutter analyze` clean, 43 tests pass.
 > commit: `feat(mobile): scan orchestration on isolate with recompute path`
 
-**S10 — ScanScreen + ResultScreen (baseline).** Camera preview + capture; ingredient/weight list
-with per-item detail.
+**S10 — ScanScreen + ResultScreen (baseline).** ✅ **DONE.**
+[focal.dart](../mobile/lib/services/focal.dart) reads EXIF `FocalLengthIn35mmFilm`
+(`focal_px = focal35mm/36 × width`, pure `focalPxFromFocal35mm` helper) with the `width×0.8`
+fallback, mirroring weight.py. [ScanScreen](../mobile/lib/screens/scan_screen.dart): live
+`CameraPreview` + capture FAB, **plus a bundled-sample strip** (`kSampleImageAssets`) so the user
+can scan a sample instead of taking a photo (graceful "camera unavailable" state on simulators).
+Capture/select → decode → focal → `ScanController.scan` → push
+[ResultScreen](../mobile/lib/screens/result_screen.dart), which reacts to `ScanStatus`
+(running/error/empty/success) and lists ingredients with weight + expandable detail (shape,
+confidence, depth, real size, density, manual flag). Home "Scan" button wired up; camera
+permissions added (Android `CAMERA`, iOS `NSCameraUsageDescription`). Focal computation unit-tested;
+`flutter analyze` clean, 45 tests pass.
 > commit: `feat(mobile): scan and result screens`
 
 **S11 — RecipeService + recipe cards.** Gemini call, JSON validation, recipe cards, offline

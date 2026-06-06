@@ -13,6 +13,6 @@ void main() {
     expect(find.text('Visual Ingredient Scanner'), findsOneWidget);
     expect(find.textContaining('classes loaded'), findsOneWidget);
     expect(find.textContaining('Detector:'), findsOneWidget);
-    expect(find.text('Scan (coming soon)'), findsOneWidget);
+    expect(find.text('Scan'), findsOneWidget);
   });
 }
