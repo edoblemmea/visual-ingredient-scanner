@@ -11,6 +11,7 @@ import '../services/asset_catalog.dart';
 import '../services/density_service.dart';
 import '../services/depth_service.dart';
 import '../services/detector_service.dart';
+import '../services/recipe_service.dart';
 import '../services/weight_service.dart';
 
 enum ScanStatus { idle, running, success, error }
@@ -45,6 +46,9 @@ class ScanController extends ChangeNotifier {
   double get depthScale => _depthScale;
   List<Detection> get manualDetections => List.unmodifiable(_manualDetections);
 
+  bool _recipesLoading = false;
+  bool get recipesLoading => _recipesLoading;
+
   // Lazily-loaded inference services; rebuilt when the model selection changes.
   DetectorService? _detector;
   DepthService? _depth;
@@ -77,9 +81,28 @@ class ScanController extends ChangeNotifier {
     } catch (e) {
       error = e.toString();
       status = ScanStatus.error;
+      notifyListeners();
+      return;
     }
+    notifyListeners(); // ingredients + weights ready; recipes load after
+    await _generateRecipes();
+  }
+
+  /// Stage ⑤ — fetch recipes for the current ingredients (non-blocking for the
+  /// weight display). Degrades silently to no recipes on any failure.
+  Future<void> _generateRecipes() async {
+    if (result.isEmpty) return;
+    _recipesLoading = true;
+    notifyListeners();
+    final recipes = await RecipeService(apiKey: _settings.geminiApiKey)
+        .generate(result.ingredientWeights);
+    result = result.copyWith(recipes: recipes);
+    _recipesLoading = false;
     notifyListeners();
   }
+
+  /// Re-runs recipe generation on demand (e.g. after corrections change weights).
+  Future<void> regenerateRecipes() => _generateRecipes();
 
   Future<void> _ensureServices(AppSettings settings) async {
     final choice = settings.modelChoice(

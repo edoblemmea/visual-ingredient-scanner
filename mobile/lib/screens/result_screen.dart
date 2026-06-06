@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../models/recipe.dart';
 import '../models/scan_result.dart';
 import '../models/weighted_item.dart';
 import '../state/scan_controller.dart';
@@ -42,7 +43,10 @@ class ResultScreen extends StatelessWidget {
             case ScanStatus.idle:
               return const _Centered(child: Text('No scan yet.'));
             case ScanStatus.success:
-              return _ResultList(result: controller.result);
+              return _ResultList(
+                result: controller.result,
+                recipesLoading: controller.recipesLoading,
+              );
           }
         },
       ),
@@ -51,9 +55,10 @@ class ResultScreen extends StatelessWidget {
 }
 
 class _ResultList extends StatelessWidget {
-  const _ResultList({required this.result});
+  const _ResultList({required this.result, required this.recipesLoading});
 
   final ScanResult result;
+  final bool recipesLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -71,7 +76,103 @@ class _ResultList extends StatelessWidget {
           ),
         ),
         for (final item in items) _ItemTile(item: item),
+        const Divider(height: 24),
+        _RecipesSection(recipes: result.recipes, loading: recipesLoading),
       ],
+    );
+  }
+}
+
+class _RecipesSection extends StatelessWidget {
+  const _RecipesSection({required this.recipes, required this.loading});
+
+  final List<Recipe> recipes;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: Text('Recipes', style: Theme.of(context).textTheme.titleMedium),
+        ),
+        if (loading)
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                SizedBox(width: 12),
+                Text('Generating recipes…'),
+              ],
+            ),
+          )
+        else if (recipes.isEmpty)
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Text(
+              'No recipes. Add a Gemini API key in Settings to get suggestions.',
+            ),
+          )
+        else
+          for (final recipe in recipes) _RecipeCard(recipe: recipe),
+      ],
+    );
+  }
+}
+
+class _RecipeCard extends StatelessWidget {
+  const _RecipeCard({required this.recipe});
+
+  final Recipe recipe;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(recipe.name, style: Theme.of(context).textTheme.titleSmall),
+            if (recipe.servings > 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  '${recipe.servings} servings',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+            if (recipe.ingredientsUsed.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: [
+                    for (final ing in recipe.ingredientsUsed)
+                      Chip(
+                        label: Text(ing),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                  ],
+                ),
+              ),
+            for (var i = 0; i < recipe.steps.length; i++)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text('${i + 1}. ${recipe.steps[i]}'),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

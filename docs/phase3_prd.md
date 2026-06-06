@@ -319,8 +319,17 @@ permissions added (Android `CAMERA`, iOS `NSCameraUsageDescription`). Focal comp
 `flutter analyze` clean, 45 tests pass.
 > commit: `feat(mobile): scan and result screens`
 
-**S11 — RecipeService + recipe cards.** Gemini call, JSON validation, recipe cards, offline
-state. API key read from settings.
+**S11 — RecipeService + recipe cards.** ✅ **DONE.**
+[RecipeService](../mobile/lib/services/recipe_service.dart) ports recipe.py: one
+`gemini-2.0-flash-lite` call (`google_generative_ai`, `responseMimeType: application/json`),
+`buildPrompt` mirrors the Python template, `parseRecipes` strips a ```json fence, decodes the
+array, and caps at 3. Graceful degradation: empty list on no API key / no ingredients / network /
+parse failure (pure helpers unit-tested). The [ScanController](../mobile/lib/state/scan_controller.dart)
+runs it as stage ⑤ **after** the weights are shown (separate `recipesLoading` flag, non-blocking),
+with `regenerateRecipes()` for on-demand refresh. [ResultScreen](../mobile/lib/screens/result_screen.dart)
+shows a recipes section: spinner while loading, recipe cards (name, servings, ingredient chips,
+numbered steps), or a "add a Gemini API key in Settings" hint when empty. API key read from
+settings (the entry field lands in S12). `flutter analyze` clean, 52 tests pass.
 > commit: `feat(mobile): Gemini recipe generation and result cards`
 
 **S12 — SettingsScreen: model selection.** Detector + depth radio pickers from registry; confidence
