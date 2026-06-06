@@ -32,8 +32,12 @@ void main() {
   });
 
   test('density table is a non-empty class to kg/m3 map', () async {
+    final labels = await AssetCatalog.loadLabels();
     final densities = await AssetCatalog.loadDensityTable();
+    final missing = labels.where((label) => !densities.containsKey(label));
+
     expect(densities, isNotEmpty);
     expect(densities['apple'], greaterThan(0));
+    expect(missing, isEmpty);
   });
 }

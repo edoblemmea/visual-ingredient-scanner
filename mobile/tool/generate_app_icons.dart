@@ -15,6 +15,14 @@ const _androidIcons = {
   'android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png': 192,
 };
 
+const _androidAdaptiveForegrounds = {
+  'android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png': 108,
+  'android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png': 162,
+  'android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png': 216,
+  'android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png': 324,
+  'android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png': 432,
+};
+
 const _iosIcons = {
   'ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@1x.png': 20,
   'ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@2x.png': 40,
@@ -37,137 +45,220 @@ const _iosIcons = {
 
 void main() {
   final source = _drawIcon();
+  final foreground = _drawAdaptiveForeground();
+
   _writePng('assets/branding/app_icon.png', img.copyResize(source, width: 512));
 
   for (final entry in {..._androidIcons, ..._iosIcons}.entries) {
     _writePng(entry.key, img.copyResize(source, width: entry.value));
+  }
+  for (final entry in _androidAdaptiveForegrounds.entries) {
+    _writePng(entry.key, img.copyResize(foreground, width: entry.value));
   }
 }
 
 img.Image _drawIcon() {
   final image = img.Image(width: _canvas, height: _canvas);
   _paintBackground(image);
+  _drawPan(image, withShadow: true);
+  return _downsample(image);
+}
 
-  final shadow = _rgba(0, 0, 0, 46);
-  final teal = _rgb(12, 75, 68);
-  final cream = _rgb(250, 245, 225);
-  final leaf = _rgb(89, 184, 111);
-  final leafDark = _rgb(20, 128, 83);
-  final tomato = _rgb(239, 88, 70);
-  final tomatoStem = _rgb(37, 132, 77);
-  final shine = _rgba(255, 255, 255, 110);
+img.Image _drawAdaptiveForeground() {
+  final raw = img.Image(width: _canvas, height: _canvas, numChannels: 4);
+  img.fill(raw, color: _rgba(0, 0, 0, 0));
+  _drawPan(raw, withShadow: true);
 
+  final image = img.Image(width: _canvas, height: _canvas, numChannels: 4);
+  img.fill(image, color: _rgba(0, 0, 0, 0));
+  final safeForeground = img.copyResize(
+    raw,
+    width: (_canvas * 0.58).round(),
+    height: (_canvas * 0.58).round(),
+    interpolation: img.Interpolation.average,
+  );
+  img.compositeImage(
+    image,
+    safeForeground,
+    dstX: (image.width - safeForeground.width) ~/ 2,
+    dstY: (image.height - safeForeground.height) ~/ 2,
+  );
+  return _downsample(image);
+}
+
+void _drawPan(img.Image image, {required bool withShadow}) {
   final s = _scale;
+  final shadow = _rgba(0, 0, 0, 58);
+  final panOuter = _rgb(18, 53, 52);
+  final panInner = _rgb(47, 78, 74);
+  final panInset = _rgb(67, 94, 88);
+  final highlight = _rgba(255, 255, 255, 72);
+  final handleAccent = _rgb(28, 119, 102);
 
-  img.fillCircle(image, x: 524 * s, y: 554 * s, radius: 318 * s, color: shadow);
-  img.drawLine(
-    image,
-    x1: 666 * s,
-    y1: 692 * s,
-    x2: 836 * s,
-    y2: 862 * s,
-    color: shadow,
-    thickness: 96 * s,
-  );
+  if (withShadow) {
+    img.fillCircle(
+      image,
+      x: 442 * s,
+      y: 482 * s,
+      radius: 342 * s,
+      color: shadow,
+    );
+    img.drawLine(
+      image,
+      x1: 606 * s,
+      y1: 636 * s,
+      x2: 862 * s,
+      y2: 892 * s,
+      color: shadow,
+      thickness: 118 * s,
+    );
+  }
 
   img.drawLine(
     image,
-    x1: 642 * s,
-    y1: 664 * s,
-    x2: 812 * s,
-    y2: 834 * s,
-    color: teal,
-    thickness: 92 * s,
+    x1: 574 * s,
+    y1: 604 * s,
+    x2: 834 * s,
+    y2: 864 * s,
+    color: panOuter,
+    thickness: 108 * s,
   );
   img.drawLine(
     image,
-    x1: 646 * s,
-    y1: 668 * s,
-    x2: 794 * s,
-    y2: 816 * s,
-    color: _rgb(30, 116, 99),
+    x1: 603 * s,
+    y1: 633 * s,
+    x2: 805 * s,
+    y2: 835 * s,
+    color: handleAccent,
     thickness: 46 * s,
   );
-
-  img.fillCircle(image, x: 486 * s, y: 500 * s, radius: 302 * s, color: teal);
-  img.fillCircle(image, x: 486 * s, y: 500 * s, radius: 246 * s, color: cream);
-  img.fillCircle(image, x: 430 * s, y: 392 * s, radius: 54 * s, color: shine);
-
-  _fillRotatedEllipse(
+  img.fillCircle(
     image,
-    cx: 476 * s,
-    cy: 512 * s,
-    rx: 156 * s,
-    ry: 86 * s,
-    angle: -0.72,
-    color: leaf,
+    x: 798 * s,
+    y: 828 * s,
+    radius: 22 * s,
+    color: _rgba(246, 239, 213, 128),
   );
+
+  img.fillCircle(
+    image,
+    x: 408 * s,
+    y: 420 * s,
+    radius: 326 * s,
+    color: panOuter,
+  );
+  img.fillCircle(
+    image,
+    x: 408 * s,
+    y: 420 * s,
+    radius: 260 * s,
+    color: panInner,
+  );
+  img.fillCircle(
+    image,
+    x: 408 * s,
+    y: 420 * s,
+    radius: 218 * s,
+    color: panInset,
+  );
+  img.fillCircle(
+    image,
+    x: 288 * s,
+    y: 276 * s,
+    radius: 54 * s,
+    color: highlight,
+  );
+
+  _drawEgg(image);
+  _drawTomato(image);
+  _drawLeaf(image);
+}
+
+void _drawEgg(img.Image image) {
+  final s = _scale;
   _fillRotatedEllipse(
     image,
-    cx: 529 * s,
-    cy: 456 * s,
-    rx: 96 * s,
-    ry: 56 * s,
-    angle: -0.72,
-    color: _rgb(117, 207, 133),
+    cx: 410 * s,
+    cy: 428 * s,
+    rx: 140 * s,
+    ry: 102 * s,
+    angle: -0.18,
+    color: _rgb(252, 246, 219),
+  );
+  img.fillCircle(
+    image,
+    x: 452 * s,
+    y: 438 * s,
+    radius: 52 * s,
+    color: _rgb(250, 182, 64),
+  );
+  img.fillCircle(
+    image,
+    x: 434 * s,
+    y: 412 * s,
+    radius: 14 * s,
+    color: _rgba(255, 238, 160, 160),
+  );
+}
+
+void _drawTomato(img.Image image) {
+  final s = _scale;
+  final tomato = _rgb(239, 86, 70);
+  final stem = _rgb(69, 163, 86);
+
+  img.fillCircle(image, x: 302 * s, y: 348 * s, radius: 62 * s, color: tomato);
+  img.fillCircle(
+    image,
+    x: 280 * s,
+    y: 326 * s,
+    radius: 17 * s,
+    color: _rgba(255, 221, 199, 135),
   );
   img.drawLine(
     image,
-    x1: 356 * s,
-    y1: 594 * s,
-    x2: 601 * s,
-    y2: 409 * s,
-    color: leafDark,
+    x1: 300 * s,
+    y1: 284 * s,
+    x2: 318 * s,
+    y2: 334 * s,
+    color: stem,
     thickness: 18 * s,
   );
   img.drawLine(
     image,
-    x1: 426 * s,
-    y1: 540 * s,
-    x2: 405 * s,
-    y2: 468 * s,
-    color: _rgb(226, 244, 205),
-    thickness: 12 * s,
+    x1: 270 * s,
+    y1: 334 * s,
+    x2: 336 * s,
+    y2: 322 * s,
+    color: stem,
+    thickness: 13 * s,
   );
+}
 
-  img.fillCircle(image, x: 638 * s, y: 340 * s, radius: 70 * s, color: tomato);
-  img.fillCircle(
+void _drawLeaf(img.Image image) {
+  final s = _scale;
+  _fillRotatedEllipse(
     image,
-    x: 610 * s,
-    y: 312 * s,
-    radius: 20 * s,
-    color: _rgba(255, 227, 204, 125),
+    cx: 542 * s,
+    cy: 514 * s,
+    rx: 112 * s,
+    ry: 58 * s,
+    angle: -0.64,
+    color: _rgb(91, 191, 111),
   );
   img.drawLine(
     image,
-    x1: 636 * s,
-    y1: 272 * s,
-    x2: 654 * s,
-    y2: 318 * s,
-    color: tomatoStem,
-    thickness: 16 * s,
-  );
-  img.drawLine(
-    image,
-    x1: 608 * s,
-    y1: 314 * s,
-    x2: 676 * s,
-    y2: 304 * s,
-    color: tomatoStem,
-    thickness: 12 * s,
-  );
-
-  return img.copyResize(
-    image,
-    width: _size,
-    interpolation: img.Interpolation.average,
+    x1: 474 * s,
+    y1: 580 * s,
+    x2: 612 * s,
+    y2: 450 * s,
+    color: _rgb(20, 128, 83),
+    thickness: 15 * s,
   );
 }
 
 void _paintBackground(img.Image image) {
-  final top = (r: 21, g: 105, b: 91);
-  final bottom = (r: 86, g: 170, b: 104);
-  final accent = _rgba(255, 196, 93, 56);
+  final top = (r: 22, g: 117, b: 97);
+  final bottom = (r: 94, g: 176, b: 105);
 
   for (var y = 0; y < image.height; y++) {
     final t = y / (image.height - 1);
@@ -182,12 +273,18 @@ void _paintBackground(img.Image image) {
   }
 
   final s = _scale;
-  img.fillCircle(image, x: 160 * s, y: 130 * s, radius: 210 * s, color: accent);
+  img.fillCircle(
+    image,
+    x: 118 * s,
+    y: 132 * s,
+    radius: 210 * s,
+    color: _rgba(255, 194, 89, 66),
+  );
   img.fillCircle(
     image,
     x: 900 * s,
-    y: 180 * s,
-    radius: 152 * s,
+    y: 144 * s,
+    radius: 156 * s,
     color: _rgba(255, 255, 255, 32),
   );
 }
@@ -221,6 +318,12 @@ void _fillRotatedEllipse(
     }
   }
 }
+
+img.Image _downsample(img.Image image) => img.copyResize(
+  image,
+  width: _size,
+  interpolation: img.Interpolation.average,
+);
 
 void _writePng(String path, img.Image image) {
   final file = File(path);
