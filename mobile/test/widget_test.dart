@@ -14,9 +14,10 @@ void main() {
     await tester.pumpWidget(const AppBootstrap());
     await tester.pumpAndSettle();
 
-    expect(find.text('Visual Ingredient Scanner'), findsOneWidget);
+    expect(find.text('Foodie Lens'), findsOneWidget);
     expect(find.textContaining('classes loaded'), findsOneWidget);
     expect(find.textContaining('Detector:'), findsOneWidget);
+    expect(find.textContaining('Depth:'), findsOneWidget);
     expect(find.text('Scan'), findsOneWidget);
   });
 }

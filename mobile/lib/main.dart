@@ -66,7 +66,9 @@ class _AppBootstrapState extends State<AppBootstrap> {
         return MultiProvider(
           providers: [
             Provider<AppCatalog>.value(value: boot.catalog),
-            ChangeNotifierProvider<SettingsProvider>.value(value: boot.settings),
+            ChangeNotifierProvider<SettingsProvider>.value(
+              value: boot.settings,
+            ),
             ChangeNotifierProvider<ScanController>(
               create: (_) => ScanController(catalog: boot.catalog),
             ),
@@ -99,7 +101,7 @@ class VisualIngredientScannerApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Visual Ingredient Scanner',
+      title: 'Foodie Lens',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),

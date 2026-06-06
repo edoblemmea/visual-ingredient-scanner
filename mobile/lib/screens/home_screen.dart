@@ -20,19 +20,20 @@ class HomeScreen extends StatelessWidget {
     final detectorLabel = catalog.registry.detectors
         .firstWhere((d) => d.id == choice.detectorId)
         .label;
-    final depthLabel =
-        catalog.registry.depth.firstWhere((d) => d.id == choice.depthId).label;
+    final depthLabel = catalog.registry.depth
+        .firstWhere((d) => d.id == choice.depthId)
+        .label;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Visual Ingredient Scanner'),
+        title: const Text('Foodie Lens'),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
             tooltip: 'Settings',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const SettingsScreen()),
-            ),
+            onPressed: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const SettingsScreen())),
           ),
         ],
       ),
@@ -40,7 +41,12 @@ class HomeScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.kitchen, size: 96),
+            Image.asset(
+              'assets/branding/app_icon.png',
+              width: 104,
+              height: 104,
+              semanticLabel: 'Foodie Lens',
+            ),
             const SizedBox(height: 16),
             Text(
               'Scan a fridge or counter to detect\ningredients, weights, and recipes.',
@@ -53,16 +59,17 @@ class HomeScreen extends StatelessWidget {
               style: Theme.of(context).textTheme.bodySmall,
             ),
             Text(
-              'Detector: $detectorLabel · Depth: $depthLabel',
+              'Detector: $detectorLabel\nDepth: $depthLabel',
+              textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 24),
             FilledButton.icon(
               icon: const Icon(Icons.camera_alt),
               label: const Text('Scan'),
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const ScanScreen()),
-              ),
+              onPressed: () => Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const ScanScreen())),
             ),
           ],
         ),
