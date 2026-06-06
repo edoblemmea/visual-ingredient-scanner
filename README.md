@@ -242,7 +242,7 @@ The depth stage auto-selects its preprocessing from the chosen ONNX, so any of t
 - **LLM:** [Gemini 2.0 Flash Lite](https://ai.google.dev/) — recipe generation only
 - **Training:** PyTorch + Ultralytics on Google Colab / Kaggle (T4)
 - **Dataset:** [Roboflow Universe](https://universe.roboflow.com/)
-- **Mobile:** Flutter 3.x with `tflite_flutter` + `onnxruntime_flutter`
+- **Mobile:** Flutter 3.x with `flutter_onnxruntime` (ORT 1.22, on-device detection + depth)
 - **Prototype UI:** Gradio
 
 ---

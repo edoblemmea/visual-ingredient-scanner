@@ -33,7 +33,7 @@ scale, and fix detections — all on-device.
 
 ## 2. Models bundled in the app
 
-Only **ONNX** assets are shipped — both stages run through `onnxruntime` on device, giving a
+Only **ONNX** assets are shipped — both stages run through `flutter_onnxruntime` (ORT 1.22) on device, giving a
 single inference code path for detector and depth.
 
 ### 2.1 Detector models (YOLO, selectable)
@@ -88,8 +88,8 @@ canonical 616×1064 + de-canonicalise with focal; Depth Anything → 518×518). 
 ```
 ScanScreen (camera) ──capture──> ScanController  (orchestrates, runs models on an Isolate)
    │                                  │  caches: detections + raw depth map + focal_px
-   ├─ DetectorService  ← onnxruntime  │
-   ├─ DepthService     ← onnxruntime  │
+   ├─ DetectorService  ← flutter_onnxruntime  │
+   ├─ DepthService     ← flutter_onnxruntime  │
    ├─ DensityService   ← food_densities.json + user overrides
    ├─ WeightService    ← pure Dart (pinhole + shapes)  ◄── re-run cheaply on corrections (G7)
    └─ RecipeService    ← Gemini (single network call)
@@ -198,7 +198,7 @@ are I/O-verified.
 **S1 — Flutter scaffold.** ✅ **DONE.** Created `mobile/` via
 `flutter create --org edu.upc.fib.cv --project-name visual_ingredient_scanner --platforms=android,ios`
 (Flutter 3.41.9 / Dart 3.11.5). Folder layout `lib/{screens,services,models,widgets}`; deps added
-(`camera`, `image`, `onnxruntime`, `google_generative_ai`, `flutter_secure_storage`, `provider`,
+(`camera`, `image`, `flutter_onnxruntime`, `google_generative_ai`, `flutter_secure_storage`, `provider`,
 `shared_preferences`, `path_provider`); `analysis_options.yaml` (flutter_lints) in place. App boots
 to `HomeScreen` with a route into a `SettingsScreen` placeholder. `flutter analyze` clean; smoke
 test passes.
@@ -280,19 +280,15 @@ bilinear resize back, de-canonicalise `× focal×scale/1000`) and Depth Anything
 ImageNet 0–1). Pre/post helpers (`preprocessMetric3d`, `preprocessDepthAnything`, `cropPlane`,
 `bilinearResize`, `metric3dDecanonFactor`) are pure static + unit-tested.
 
-> **Float16 resolved (key finding).** The committed `metric3d-vit-small-fp16.onnx` has float16
-> **input and output**, which the Dart onnxruntime package cannot create or read via its
-> high-level API. Rather than switch to the 150 MB fp32 model (manual download), S8 adds
-> [ort_float16.dart](../mobile/lib/services/ort_float16.dart): a pure-Dart IEEE-754 binary16
-> codec plus FFI helpers that create a float16 input tensor and read the float16 output through
-> the ORT C API (`OrtEnv.instance.ortApiPtr`, `CreateTensorWithDataAsOrtValue`/
-> `GetTensorMutableData`), using the public `ONNXTensorElementDataType.float16`. So the 72 MB
-> fp16 Metric3D **works out of the box** — no fp32 download. The registry carries
-> `"precision":"float16"` (→ `DepthModel.float16` → `DepthService.fromAsset(float16:)`).
+> **Float16 (resolved via runtime upgrade).** The fp16 Metric3D model has float16 input/output.
+> The original `onnxruntime` package (ORT 1.15) couldn't create/read float16 tensors, so an earlier
+> approach hand-wrote an FFI binary16 codec. That is now **removed**: the app migrated to
+> **`flutter_onnxruntime` (ORT 1.22)**, which has native FP16 — `DepthService` feeds the model with
+> `OrtValue.to(OrtDataType.float16)` and reads the float16 output back as doubles via
+> `asFlattenedList()`. The registry carries `"precision":"float16"` (→ `DepthModel.float16` →
+> `DepthService.fromAsset(float16:)`).
 
-Codec verified against known binary16 bit patterns (1.0→0x3C00, etc.) and round-trips; the FFI
-create/read can only be exercised with native ORT (on-device, S9/S17). `flutter analyze` clean,
-38 tests pass.
+`flutter analyze` clean, tests pass.
 > commit: `feat(mobile): depth service (Metric3D + Depth Anything, float16 support)`
 
 **S9 — ScanController + Isolate.** ✅ **DONE.**
@@ -389,7 +385,7 @@ update report.
 
 ## 8. Dependencies (pubspec)
 
-`camera`, `image` (EXIF + pixel ops + draw), `onnxruntime`, `ffi` (float16 tensors),
+`camera`, `image` (EXIF + pixel ops + draw), `flutter_onnxruntime` (ORT 1.22),
 `google_generative_ai`, `flutter_secure_storage` (API key at rest), `provider`,
 `shared_preferences`, `path_provider`.
 

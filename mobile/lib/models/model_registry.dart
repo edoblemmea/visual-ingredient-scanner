@@ -44,7 +44,8 @@ class DepthModel {
   /// `metric3d` or `depthanything` — selects the pre/post-processing branch.
   final String family;
 
-  /// True when the model has float16 I/O (needs the ort_float16 FFI path).
+  /// True when the model has float16 I/O; DepthService feeds it via the
+  /// runtime's native float16 conversion (`OrtValue.to(float16)`).
   final bool float16;
 
   /// ONNX external-data file this model needs alongside [asset], if any.
