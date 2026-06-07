@@ -95,11 +95,20 @@ class ScanController extends ChangeNotifier {
     notifyListeners();
     try {
       await _ensureServices(settings);
-      final detections = await _detector!.detect(
-        image,
-        confThreshold: settings.confidenceThreshold,
-      );
-      final depthMap = await _depth!.estimate(image, focalPx: focalPx);
+      final List<dynamic> results;
+      if (settings.parallelInference) {
+        results = await Future.wait([
+          _detector!.detect(image, confThreshold: settings.confidenceThreshold),
+          _depth!.estimate(image, focalPx: focalPx),
+        ]);
+      } else {
+        results = [
+          await _detector!.detect(image, confThreshold: settings.confidenceThreshold),
+          await _depth!.estimate(image, focalPx: focalPx),
+        ];
+      }
+      final detections = results[0] as List<Detection>;
+      final depthMap = results[1] as DepthMap;
 
       _image = image;
       _imageBytes = imageBytes;

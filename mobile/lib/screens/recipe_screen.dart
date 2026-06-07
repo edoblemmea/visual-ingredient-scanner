@@ -366,7 +366,9 @@ class _RecipeIngredientChip extends StatelessWidget {
     return Chip(
       label: Text(label),
       labelPadding: const EdgeInsets.symmetric(horizontal: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      visualDensity: const VisualDensity(vertical: -2),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
     );
   }

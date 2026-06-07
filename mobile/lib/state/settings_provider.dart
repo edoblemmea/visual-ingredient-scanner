@@ -53,6 +53,9 @@ class SettingsProvider extends ChangeNotifier {
   Future<void> setShowSampleImages(bool value) =>
       _update(_settings.copyWith(showSampleImages: value));
 
+  Future<void> setParallelInference(bool value) =>
+      _update(_settings.copyWith(parallelInference: value));
+
   Future<void> setGeminiModel(String value) {
     final trimmed = value.trim();
     return _update(

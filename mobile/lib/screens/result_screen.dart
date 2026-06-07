@@ -27,28 +27,27 @@ class ResultScreen extends StatelessWidget {
         final canGetRecipes =
             controller.status == ScanStatus.success && !result.isEmpty;
         return Scaffold(
-          appBar: AppBar(
-            title: const Text('Detected ingredients'),
-            actions: [
-              if (canGetRecipes)
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: FilledButton.icon(
-                    icon: const Icon(Icons.restaurant_menu),
-                    label: const Text('Get recipes'),
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => RecipeScreen(
-                          ingredientWeights: Map.unmodifiable(
-                            result.ingredientWeights,
+          appBar: AppBar(title: const Text('Detected ingredients')),
+          bottomNavigationBar: canGetRecipes
+              ? SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                    child: FilledButton.icon(
+                      icon: const Icon(Icons.restaurant_menu),
+                      label: const Text('Get recipes'),
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => RecipeScreen(
+                            ingredientWeights: Map.unmodifiable(
+                              result.ingredientWeights,
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                ),
-            ],
-          ),
+                )
+              : null,
           body: switch (controller.status) {
             ScanStatus.running => const _Centered(
               child: Column(
@@ -116,7 +115,7 @@ class _ResultList extends StatelessWidget {
         _DistanceCorrection(controller: controller, items: items),
         const Divider(height: 16),
         _IngredientSummary(items: items),
-        const SizedBox(height: 24),
+        const SizedBox(height: 104),
       ],
     );
   }
@@ -632,9 +631,9 @@ class _ItemTile extends StatelessWidget {
   }
 
   String _sourceLabel(Detection det) {
-    if (det.isRelabeled) return 'YOLO edited';
+    if (det.isRelabeled) return 'AI + Manual edit';
     return switch (det.origin) {
-      DetectionOrigin.model => 'YOLO detected',
+      DetectionOrigin.model => 'AI detected',
       DetectionOrigin.smart || DetectionOrigin.manual => 'New ingredient',
     };
   }

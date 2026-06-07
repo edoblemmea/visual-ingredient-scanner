@@ -88,6 +88,15 @@ class SettingsScreen extends StatelessWidget {
             value: settings.settings.showSampleImages,
             onChanged: settings.setShowSampleImages,
           ),
+          SwitchListTile(
+            title: const Text('Parallel inference'),
+            subtitle: const Text(
+              'Run detector and depth model concurrently — may be faster on '
+              'multi-core devices, but increases peak memory usage',
+            ),
+            value: settings.settings.parallelInference,
+            onChanged: settings.setParallelInference,
+          ),
           const Divider(),
           const _SectionHeader('Gemini model'),
           _GeminiModelField(settings: settings),

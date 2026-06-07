@@ -25,6 +25,7 @@ class AppSettings {
     this.showBoxes = true,
     this.showDepthMap = false,
     this.showSampleImages = false,
+    this.parallelInference = false,
     this.geminiModel = kDefaultGeminiModel,
     this.geminiApiKey = '',
   });
@@ -40,6 +41,9 @@ class AppSettings {
   final bool showBoxes;
   final bool showDepthMap;
   final bool showSampleImages;
+
+  /// Run YOLO detection and Metric3D depth estimation concurrently.
+  final bool parallelInference;
 
   /// Gemini model used for recipe generation.
   final String geminiModel;
@@ -66,6 +70,7 @@ class AppSettings {
     bool? showBoxes,
     bool? showDepthMap,
     bool? showSampleImages,
+    bool? parallelInference,
     String? geminiModel,
     String? geminiApiKey,
   }) => AppSettings(
@@ -76,6 +81,7 @@ class AppSettings {
     showBoxes: showBoxes ?? this.showBoxes,
     showDepthMap: showDepthMap ?? this.showDepthMap,
     showSampleImages: showSampleImages ?? this.showSampleImages,
+    parallelInference: parallelInference ?? this.parallelInference,
     geminiModel: geminiModel ?? this.geminiModel,
     geminiApiKey: geminiApiKey ?? this.geminiApiKey,
   );
@@ -89,6 +95,7 @@ class AppSettings {
     'showBoxes': showBoxes,
     'showDepthMap': showDepthMap,
     'showSampleImages': showSampleImages,
+    'parallelInference': parallelInference,
     'geminiModel': geminiModel,
   };
 
@@ -105,6 +112,7 @@ class AppSettings {
     showBoxes: json['showBoxes'] as bool? ?? true,
     showDepthMap: json['showDepthMap'] as bool? ?? false,
     showSampleImages: json['showSampleImages'] as bool? ?? false,
+    parallelInference: json['parallelInference'] as bool? ?? false,
     geminiModel: _geminiModelFromJson(json['geminiModel']),
   );
 }
