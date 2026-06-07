@@ -6,6 +6,8 @@ class DetectorModel {
     required this.id,
     required this.label,
     required this.asset,
+    required this.downloadUrl,
+    required this.sizeBytes,
     required this.inputSize,
     required this.isDefault,
   });
@@ -13,13 +15,19 @@ class DetectorModel {
   final String id;
   final String label;
   final String asset;
+  final String downloadUrl;
+  final int sizeBytes;
   final int inputSize;
   final bool isDefault;
+
+  String get filename => asset.split('/').last;
 
   factory DetectorModel.fromJson(Map<String, dynamic> json) => DetectorModel(
         id: json['id'] as String,
         label: json['label'] as String,
         asset: json['asset'] as String,
+        downloadUrl: json['downloadUrl'] as String,
+        sizeBytes: json['sizeBytes'] as int? ?? 0,
         inputSize: json['inputSize'] as int? ?? 640,
         isDefault: json['default'] as bool? ?? false,
       );
@@ -30,37 +38,49 @@ class DepthModel {
     required this.id,
     required this.label,
     required this.asset,
+    required this.downloadUrl,
+    required this.sizeBytes,
     required this.family,
     required this.float16,
     required this.externalData,
-    required this.requiresManualDownload,
+    required this.externalDataUrl,
+    required this.externalDataSizeBytes,
     required this.isDefault,
   });
 
   final String id;
   final String label;
   final String asset;
+  final String downloadUrl;
+  final int sizeBytes;
 
-  /// `metric3d` or `depthanything` — selects the pre/post-processing branch.
+  /// metric3d or depthanything — selects the pre/post-processing branch.
   final String family;
-
-  /// True when the model has float16 I/O; DepthService feeds it via the
-  /// runtime's native float16 conversion (`OrtValue.to(float16)`).
   final bool float16;
 
-  /// ONNX external-data file this model needs alongside [asset], if any.
+  /// ONNX external-data sidecar asset path, if any.
   final String? externalData;
-  final bool requiresManualDownload;
+  final String? externalDataUrl;
+  final int externalDataSizeBytes;
   final bool isDefault;
+
+  String get filename => asset.split('/').last;
+  String? get externalFilename => externalData?.split('/').last;
+
+  /// Total download size in bytes (main file + external data if present).
+  int get totalSizeBytes => sizeBytes + externalDataSizeBytes;
 
   factory DepthModel.fromJson(Map<String, dynamic> json) => DepthModel(
         id: json['id'] as String,
         label: json['label'] as String,
         asset: json['asset'] as String,
+        downloadUrl: json['downloadUrl'] as String,
+        sizeBytes: json['sizeBytes'] as int? ?? 0,
         family: json['family'] as String,
         float16: json['precision'] == 'float16',
         externalData: json['externalData'] as String?,
-        requiresManualDownload: json['requiresManualDownload'] as bool? ?? false,
+        externalDataUrl: json['externalDataUrl'] as String?,
+        externalDataSizeBytes: json['externalDataSizeBytes'] as int? ?? 0,
         isDefault: json['default'] as bool? ?? false,
       );
 }

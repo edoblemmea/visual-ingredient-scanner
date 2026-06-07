@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../services/asset_catalog.dart';
+import '../state/model_manager_provider.dart';
 import '../state/settings_provider.dart';
 import 'density_editor_screen.dart';
+import 'model_manager_screen.dart';
 
 /// Settings: detector + depth model selection (applied on the next scan),
 /// confidence threshold, and the Gemini API key. The density editor (S13),
@@ -15,6 +17,7 @@ class SettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final registry = context.read<AppCatalog>().registry;
     final settings = context.watch<SettingsProvider>();
+    final manager = context.watch<ModelManagerProvider>();
     final choice = settings.modelChoice;
 
     return Scaffold(
@@ -28,7 +31,14 @@ class SettingsScreen extends StatelessWidget {
             child: Column(
               children: [
                 for (final d in registry.detectors)
-                  RadioListTile<String>(value: d.id, title: Text(d.label)),
+                  RadioListTile<String>(
+                    value: d.id,
+                    title: Text(d.label),
+                    enabled: manager.isDownloaded(d.id),
+                    subtitle: manager.isDownloaded(d.id)
+                        ? null
+                        : const Text('Not downloaded'),
+                  ),
               ],
             ),
           ),
@@ -43,17 +53,24 @@ class SettingsScreen extends StatelessWidget {
                   RadioListTile<String>(
                     value: d.id,
                     title: Text(d.label),
-                    subtitle: d.requiresManualDownload
-                        ? const Text(
-                            'Needs a manually downloaded model file (see README)',
-                            style: TextStyle(fontStyle: FontStyle.italic),
-                          )
-                        : null,
+                    enabled: manager.isDownloaded(d.id),
+                    subtitle: manager.isDownloaded(d.id)
+                        ? null
+                        : const Text('Not downloaded'),
                   ),
               ],
             ),
           ),
           const _Hint('Model changes apply on the next scan.'),
+          ListTile(
+            leading: const Icon(Icons.download_for_offline_outlined),
+            title: const Text('Manage models'),
+            subtitle: const Text('Download or delete individual models'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ModelManagerScreen()),
+            ),
+          ),
           const Divider(),
           const _SectionHeader('Density table'),
           ListTile(

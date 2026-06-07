@@ -35,7 +35,7 @@ void main() {
           Provider<AppCatalog>.value(value: catalog),
           ChangeNotifierProvider<SettingsProvider>.value(value: settings),
           ChangeNotifierProvider<ScanController>(
-            create: (_) => ScanController(catalog: catalog),
+            create: (_) => ScanController(catalog: catalog, modelsDir: ''),
           ),
         ],
         child: const MaterialApp(home: DensityEditorScreen()),

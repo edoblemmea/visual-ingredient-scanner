@@ -21,7 +21,6 @@ void main() {
     final depthAnything = registry.depth.firstWhere(
       (d) => d.id == 'depthanything',
     );
-    expect(depthAnything.requiresManualDownload, isFalse);
     expect(depthAnything.externalData, isNotNull);
   });
 

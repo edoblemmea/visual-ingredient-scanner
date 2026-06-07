@@ -48,13 +48,13 @@ class DetectorService {
   /// Letterbox padding grey, matching Ultralytics' default (114).
   static const int _padValue = 114;
 
-  static Future<DetectorService> fromAsset({
-    required String assetPath,
+  static Future<DetectorService> fromFile({
+    required String filePath,
     required List<String> labels,
     int inputSize = 640,
   }) async {
-    final session = await OnnxRuntime().createSessionFromAsset(
-      assetPath,
+    final session = await OnnxRuntime().createSession(
+      filePath,
       options: OrtSessionOptions(intraOpNumThreads: 2),
     );
     return DetectorService._(

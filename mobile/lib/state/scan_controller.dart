@@ -36,9 +36,10 @@ class ScanEditSnapshot {
 /// Model inference runs off the UI thread via the services' `runAsync` (ORT
 /// isolate). The weight recompute is pure Dart.
 class ScanController extends ChangeNotifier {
-  ScanController({required this.catalog});
+  ScanController({required this.catalog, required this.modelsDir});
 
   final AppCatalog catalog;
+  final String modelsDir;
 
   ScanStatus status = ScanStatus.idle;
   String? error;
@@ -207,16 +208,15 @@ class ScanController extends ChangeNotifier {
       (d) => d.id == choice.depthId,
     );
 
-    _detector = await DetectorService.fromAsset(
-      assetPath: det.asset,
+    _detector = await DetectorService.fromFile(
+      filePath: '$modelsDir/${det.filename}',
       labels: catalog.labels,
       inputSize: det.inputSize,
     );
-    _depth = await DepthService.fromAsset(
-      assetPath: dep.asset,
+    _depth = await DepthService.fromFile(
+      filePath: '$modelsDir/${dep.filename}',
       family: depthFamilyFromString(dep.family),
       float16: dep.float16,
-      externalData: dep.externalData,
     );
     _loadedChoice = choice;
   }

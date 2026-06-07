@@ -4,8 +4,10 @@ import 'package:provider/provider.dart';
 
 import 'screens/home_screen.dart';
 import 'services/asset_catalog.dart';
+import 'services/model_download_service.dart';
 import 'services/saved_recipe_repository.dart';
 import 'services/settings_repository.dart';
+import 'state/model_manager_provider.dart';
 import 'state/scan_controller.dart';
 import 'state/settings_provider.dart';
 
@@ -17,10 +19,18 @@ void main() {
 }
 
 class _Boot {
-  const _Boot(this.catalog, this.settings, this.savedRecipes);
+  const _Boot({
+    required this.catalog,
+    required this.settings,
+    required this.savedRecipes,
+    required this.modelsDir,
+    required this.modelManager,
+  });
   final AppCatalog catalog;
   final SettingsProvider settings;
   final SavedRecipeRepository savedRecipes;
+  final String modelsDir;
+  final ModelManagerProvider modelManager;
 }
 
 Future<_Boot> _bootstrap() async {
@@ -33,7 +43,23 @@ Future<_Boot> _bootstrap() async {
     registry: catalog.registry,
     initial: initial,
   );
-  return _Boot(catalog, settings, savedRecipes);
+  final modelsDir = await ModelDownloadService.modelsDirectory();
+  final modelManager = ModelManagerProvider(
+    modelsDir: modelsDir,
+    registry: catalog.registry,
+    onFirstDetectorDownloaded: settings.setDetector,
+    onFirstDepthDownloaded: settings.setDepth,
+    getCurrentDetectorId: () => settings.modelChoice.detectorId,
+    getCurrentDepthId: () => settings.modelChoice.depthId,
+  );
+  await modelManager.checkAllOnDisk();
+  return _Boot(
+    catalog: catalog,
+    settings: settings,
+    savedRecipes: savedRecipes,
+    modelsDir: modelsDir,
+    modelManager: modelManager,
+  );
 }
 
 /// Loads bundled assets + persisted settings before building the app. Providers
@@ -77,8 +103,14 @@ class _AppBootstrapState extends State<AppBootstrap> {
             ChangeNotifierProvider<SettingsProvider>.value(
               value: boot.settings,
             ),
+            ChangeNotifierProvider<ModelManagerProvider>.value(
+              value: boot.modelManager,
+            ),
             ChangeNotifierProvider<ScanController>(
-              create: (_) => ScanController(catalog: boot.catalog),
+              create: (_) => ScanController(
+                catalog: boot.catalog,
+                modelsDir: boot.modelsDir,
+              ),
             ),
           ],
           child: const VisualIngredientScannerApp(),

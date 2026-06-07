@@ -4,12 +4,16 @@
       "id": "v26m_e30",
       "label": "YOLO v26m (epoch 30)",
       "asset": "assets/models/epoch30.onnx",
+      "downloadUrl": "https://raw.githubusercontent.com/edoblemmea/visual-ingredient-scanner/master/mobile/assets/models/epoch30.onnx",
+      "sizeBytes": 81995050,
       "inputSize": 640
     },
     {
       "id": "v26m_e40",
       "label": "YOLO v26m (epoch 40)",
       "asset": "assets/models/epoch40.onnx",
+      "downloadUrl": "https://raw.githubusercontent.com/edoblemmea/visual-ingredient-scanner/master/mobile/assets/models/epoch40.onnx",
+      "sizeBytes": 81995050,
       "inputSize": 640,
       "default": true
     },
@@ -17,6 +21,8 @@
       "id": "v26m_best",
       "label": "YOLO v26m (best)",
       "asset": "assets/models/food_detector_v26m_best.onnx",
+      "downloadUrl": "https://raw.githubusercontent.com/edoblemmea/visual-ingredient-scanner/master/mobile/assets/models/food_detector_v26m_best.onnx",
+      "sizeBytes": 81944963,
       "inputSize": 640
     }
   ],
@@ -25,6 +31,8 @@
       "id": "metric3d",
       "label": "Metric3D ViT-S (metric)",
       "asset": "assets/models/metric3d-vit-small-fp16.onnx",
+      "downloadUrl": "https://raw.githubusercontent.com/edoblemmea/visual-ingredient-scanner/master/mobile/assets/models/metric3d-vit-small-fp16.onnx",
+      "sizeBytes": 75778144,
       "family": "metric3d",
       "precision": "float16",
       "default": true
@@ -33,8 +41,12 @@
       "id": "depthanything",
       "label": "Depth Anything V2-S (metric indoor)",
       "asset": "assets/models/depth_anything_v2_small.onnx",
-      "family": "depthanything",
-      "externalData": "assets/models/depth_anything_v2_small.onnx.data"
+      "downloadUrl": "https://raw.githubusercontent.com/edoblemmea/visual-ingredient-scanner/master/mobile/assets/models/depth_anything_v2_small.onnx",
+      "sizeBytes": 2227674,
+      "externalData": "assets/models/depth_anything_v2_small.onnx.data",
+      "externalDataUrl": "https://raw.githubusercontent.com/edoblemmea/visual-ingredient-scanner/master/mobile/assets/models/depth_anything_v2_small.onnx.data",
+      "externalDataSizeBytes": 98959360,
+      "family": "depthanything"
     }
   ]
 }

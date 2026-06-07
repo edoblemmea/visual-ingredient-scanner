@@ -71,6 +71,29 @@ class DepthService {
   static const List<double> imagenetMean = [0.485, 0.456, 0.406];
   static const List<double> imagenetStd = [0.229, 0.224, 0.225];
 
+  /// Load from a file on-disk. External-data sidecar must be in the same
+  /// directory as [filePath] — ORT finds it automatically.
+  static Future<DepthService> fromFile({
+    required String filePath,
+    required DepthFamily family,
+    bool float16 = false,
+  }) async {
+    final session = await OnnxRuntime().createSession(
+      filePath,
+      options: OrtSessionOptions(intraOpNumThreads: 2),
+    );
+    final outputName = session.outputNames.contains('predicted_depth')
+        ? 'predicted_depth'
+        : session.outputNames.first;
+    return DepthService._(
+      session,
+      session.inputNames.first,
+      outputName,
+      family,
+      float16,
+    );
+  }
+
   static Future<DepthService> fromAsset({
     required String assetPath,
     required DepthFamily family,

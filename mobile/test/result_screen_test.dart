@@ -50,7 +50,7 @@ void main() {
   }
 
   testWidgets('shows actionable error state', (tester) async {
-    final controller = ScanController(catalog: catalog)
+    final controller = ScanController(catalog: catalog, modelsDir: '')
       ..status = ScanStatus.error
       ..error = 'ORT runtime failed';
 
@@ -62,7 +62,7 @@ void main() {
   });
 
   testWidgets('empty result shows recovery actions', (tester) async {
-    final controller = ScanController(catalog: catalog)
+    final controller = ScanController(catalog: catalog, modelsDir: '')
       ..status = ScanStatus.success
       ..result = ScanResult.empty
       ..scanDuration = const Duration(milliseconds: 4321);
