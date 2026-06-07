@@ -15,7 +15,7 @@ import '../state/scan_controller.dart';
 ///  • **Manual**: drag a rectangle by hand.
 ///
 /// In both modes the new box opens a class picker. Tapping an existing box
-/// offers relabel / remove. All edits recompute weights live (G7); nothing is
+/// offers relabel / remove. All edits recompute weights live (G6); nothing is
 /// re-run through the models.
 class AnnotateScreen extends StatefulWidget {
   const AnnotateScreen({super.key});
@@ -75,7 +75,7 @@ class _AnnotateScreenState extends State<AnnotateScreen> {
             child: Text(
               _smart
                   ? 'Circle a missed item — the box snaps to it using depth. '
-                      'Tap an existing box to edit it.'
+                        'Tap an existing box to edit it.'
                   : 'Drag to draw a box around a missed item.',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
@@ -94,17 +94,17 @@ class _AnnotateScreenState extends State<AnnotateScreen> {
                     return GestureDetector(
                       onTapUp: _smart
                           ? (d) => _onSmartTap(
-                                context,
-                                controller,
-                                toImage(d.localPosition),
-                              )
+                              context,
+                              controller,
+                              toImage(d.localPosition),
+                            )
                           : (d) => _onExistingTap(
-                                context,
-                                controller,
-                                toImage(d.localPosition),
-                                sx,
-                                sy,
-                              ),
+                              context,
+                              controller,
+                              toImage(d.localPosition),
+                              sx,
+                              sy,
+                            ),
                       onPanStart: (d) => setState(() {
                         if (_smart) {
                           _loop
@@ -288,8 +288,7 @@ class _AnnotateScreenState extends State<AnnotateScreen> {
   }
 
   void _toast(BuildContext context, String msg) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 }
 

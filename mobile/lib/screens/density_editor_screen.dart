@@ -9,7 +9,7 @@ import '../state/settings_provider.dart';
 
 /// FR3 — editable density table. Searchable list of all classes with their
 /// current kg/m³ (override or baseline), per-row + global reset. Edits persist
-/// and recompute the current scan's weights live (G7).
+/// and recompute the current scan's weights live (G6).
 class DensityEditorScreen extends StatefulWidget {
   const DensityEditorScreen({super.key});
 
@@ -77,8 +77,7 @@ class _DensityEditorScreenState extends State<DensityEditorScreen> {
                           onPressed: () => _clear(settings, name),
                         )
                       : null,
-                  onTap: () =>
-                      _edit(settings, name, density.densityFor(name)),
+                  onTap: () => _edit(settings, name, density.densityFor(name)),
                 );
               },
             ),
@@ -134,7 +133,7 @@ class _DensityEditorScreenState extends State<DensityEditorScreen> {
     _recompute(settings);
   }
 
-  /// Push the new overrides into the current scan so weights update live (G7).
+  /// Push the new overrides into the current scan so weights update live (G6).
   void _recompute(SettingsProvider settings) {
     if (!mounted) return;
     context.read<ScanController>().updateSettings(settings.settings);

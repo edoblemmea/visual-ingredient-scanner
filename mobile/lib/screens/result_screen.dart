@@ -40,15 +40,13 @@ class ResultScreen extends StatelessWidget {
               return _Centered(
                 child: Padding(
                   padding: const EdgeInsets.all(24),
-                  child: Text(
-                    'Scan failed:\n${controller.error}',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Theme.of(context).colorScheme.error),
+                  child: _ScanErrorState(
+                    message: controller.error ?? 'Unknown scan error',
                   ),
                 ),
               );
             case ScanStatus.idle:
-              return const _Centered(child: Text('No scan yet.'));
+              return const _Centered(child: _NoScanState());
             case ScanStatus.success:
               return _ResultList(
                 controller: controller,
@@ -71,12 +69,22 @@ class _ResultList extends StatelessWidget {
   Widget build(BuildContext context) {
     final result = controller.result;
     if (result.isEmpty) {
-      return const _Centered(child: Text('No ingredients detected.'));
+      return _EmptyResultState(
+        controller: controller,
+        showTiming: settings.showBoxes || settings.showDepthMap,
+      );
     }
     final items = result.items;
     final showDebug = settings.showBoxes || settings.showDepthMap;
     return ListView(
       children: [
+        if (showDebug)
+          _ScanStats(
+            duration: controller.scanDuration,
+            detections: controller.effectiveDetections.length,
+            items: items.length,
+            depthScale: controller.depthScale,
+          ),
         if (showDebug)
           _DebugViews(
             imageBytes: controller.imageBytes,
@@ -100,10 +108,10 @@ class _ResultList extends StatelessWidget {
                 label: const Text('Edit items'),
                 onPressed: controller.hasScan
                     ? () => Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => const AnnotateScreen(),
-                          ),
-                        )
+                        MaterialPageRoute<void>(
+                          builder: (_) => const AnnotateScreen(),
+                        ),
+                      )
                     : null,
               ),
             ],
@@ -113,15 +121,184 @@ class _ResultList extends StatelessWidget {
         const Divider(height: 24),
         _DistanceCorrection(controller: controller, items: items),
         const Divider(height: 24),
-        _RecipesSection(recipes: result.recipes, loading: controller.recipesLoading),
+        _RecipesSection(
+          recipes: result.recipes,
+          loading: controller.recipesLoading,
+        ),
       ],
+    );
+  }
+}
+
+class _ScanErrorState extends StatelessWidget {
+  const _ScanErrorState({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.error_outline, size: 56, color: theme.colorScheme.error),
+        const SizedBox(height: 12),
+        Text('Scan failed', style: theme.textTheme.titleMedium),
+        const SizedBox(height: 8),
+        Text(
+          message,
+          textAlign: TextAlign.center,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.error,
+          ),
+        ),
+        const SizedBox(height: 20),
+        FilledButton.icon(
+          icon: const Icon(Icons.camera_alt),
+          label: const Text('Back to scan'),
+          onPressed: () => Navigator.of(context).maybePop(),
+        ),
+      ],
+    );
+  }
+}
+
+class _NoScanState extends StatelessWidget {
+  const _NoScanState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.camera_alt_outlined, size: 56),
+          const SizedBox(height: 12),
+          Text('No scan yet', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 20),
+          FilledButton.icon(
+            icon: const Icon(Icons.camera_alt),
+            label: const Text('Start scan'),
+            onPressed: () => Navigator.of(context).maybePop(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyResultState extends StatelessWidget {
+  const _EmptyResultState({required this.controller, required this.showTiming});
+
+  final ScanController controller;
+  final bool showTiming;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        if (showTiming)
+          _ScanStats(
+            duration: controller.scanDuration,
+            detections: controller.effectiveDetections.length,
+            items: 0,
+            depthScale: controller.depthScale,
+          ),
+        const SizedBox(height: 32),
+        const Icon(Icons.search_off, size: 56),
+        const SizedBox(height: 12),
+        Text(
+          'No ingredients detected',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Lower the confidence threshold, try another angle, or add visible items manually.',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        const SizedBox(height: 20),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 12,
+          runSpacing: 8,
+          children: [
+            FilledButton.icon(
+              icon: const Icon(Icons.edit_location_alt_outlined),
+              label: const Text('Edit items'),
+              onPressed: controller.hasScan
+                  ? () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const AnnotateScreen(),
+                      ),
+                    )
+                  : null,
+            ),
+            FilledButton.tonalIcon(
+              icon: const Icon(Icons.camera_alt),
+              label: const Text('Scan again'),
+              onPressed: () => Navigator.of(context).maybePop(),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _ScanStats extends StatelessWidget {
+  const _ScanStats({
+    required this.duration,
+    required this.detections,
+    required this.items,
+    required this.depthScale,
+  });
+
+  final Duration? duration;
+  final int detections;
+  final int items;
+  final double depthScale;
+
+  @override
+  Widget build(BuildContext context) {
+    final elapsed = duration == null
+        ? 'not recorded'
+        : '${(duration!.inMilliseconds / 1000).toStringAsFixed(2)} s';
+    final scale = depthScale == 1.0
+        ? null
+        : 'scale ×${depthScale.toStringAsFixed(2)}';
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          Chip(avatar: const Icon(Icons.timer, size: 18), label: Text(elapsed)),
+          Chip(
+            avatar: const Icon(Icons.label_outline, size: 18),
+            label: Text('$detections detections'),
+          ),
+          Chip(
+            avatar: const Icon(Icons.scale, size: 18),
+            label: Text('$items weighed'),
+          ),
+          if (scale != null)
+            Chip(
+              avatar: const Icon(Icons.straighten, size: 18),
+              label: Text(scale),
+            ),
+        ],
+      ),
     );
   }
 }
 
 /// FR6 — manual scale anchor. Pick a detected object and set its real
 /// camera-to-object distance; the controller rescales the cached depth and
-/// recomputes all weights (G7). Applied on slider release to avoid copying the
+/// recomputes all weights (G6). Applied on slider release to avoid copying the
 /// depth map on every tick.
 class _DistanceCorrection extends StatefulWidget {
   const _DistanceCorrection({required this.controller, required this.items});
@@ -187,8 +364,10 @@ class _DistanceCorrectionState extends State<_DistanceCorrection> {
                 divisions: ((_max - _min) / 0.01).round(),
                 label: '${(_distanceM * 100).round()} cm',
                 onChanged: (v) => setState(() => _distanceM = v),
-                onChangeEnd: (v) => widget.controller
-                    .applyDistanceCorrection(items[_selected].detection, v),
+                onChangeEnd: (v) => widget.controller.applyDistanceCorrection(
+                  items[_selected].detection,
+                  v,
+                ),
               ),
             ),
             SizedBox(
@@ -257,7 +436,9 @@ class _DebugViewsState extends State<_DebugViews> {
 
   Future<void> _maybeRenderDepth() async {
     final depth = widget.depthMap;
-    if (!widget.showDepthMap || depth == null || identical(depth, _renderedFor)) {
+    if (!widget.showDepthMap ||
+        depth == null ||
+        identical(depth, _renderedFor)) {
       return;
     }
     _renderedFor = depth;
@@ -271,39 +452,46 @@ class _DebugViewsState extends State<_DebugViews> {
 
     if (widget.showBoxes && widget.imageBytes != null) {
       final depth = widget.depthMap;
-      children.add(_LabeledView(
-        label: 'Detections',
-        child: AspectRatio(
-          aspectRatio: depth != null && depth.height > 0
-              ? depth.width / depth.height
-              : 1,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Image.memory(widget.imageBytes!, fit: BoxFit.fill),
-              if (depth != null)
-                CustomPaint(
-                  painter: BoxOverlayPainter(
-                    items: widget.items,
-                    imageWidth: depth.width,
-                    imageHeight: depth.height,
+      children.add(
+        _LabeledView(
+          label: 'Detections',
+          child: AspectRatio(
+            aspectRatio: depth != null && depth.height > 0
+                ? depth.width / depth.height
+                : 1,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Image.memory(widget.imageBytes!, fit: BoxFit.fill),
+                if (depth != null)
+                  CustomPaint(
+                    painter: BoxOverlayPainter(
+                      items: widget.items,
+                      imageWidth: depth.width,
+                      imageHeight: depth.height,
+                    ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
-      ));
+      );
     }
 
     if (widget.showDepthMap && _depthPng != null) {
-      children.add(_LabeledView(
-        label: 'Depth map (near → far: blue → red)',
-        child: Image.memory(_depthPng!, fit: BoxFit.contain),
-      ));
+      children.add(
+        _LabeledView(
+          label: 'Depth map (near → far: blue → red)',
+          child: Image.memory(_depthPng!, fit: BoxFit.contain),
+        ),
+      );
     }
 
     if (children.isEmpty) return const SizedBox.shrink();
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: children);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: children,
+    );
   }
 }
 
@@ -342,7 +530,10 @@ class _RecipesSection extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-          child: Text('Recipes', style: Theme.of(context).textTheme.titleMedium),
+          child: Text(
+            'Recipes',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
         ),
         if (loading)
           const Padding(
@@ -462,15 +653,12 @@ class _ItemTile extends StatelessWidget {
   }
 
   Widget _detail(String label, String value) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(label),
-            Text(value),
-          ],
-        ),
-      );
+    padding: const EdgeInsets.symmetric(vertical: 2),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [Text(label), Text(value)],
+    ),
+  );
 }
 
 class _Centered extends StatelessWidget {

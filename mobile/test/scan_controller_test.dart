@@ -14,10 +14,10 @@ void main() {
   const baseline = {'tomato': 950.0, 'onion': 850.0};
 
   Detection box(String name) => Detection(
-        className: name,
-        confidence: 0.9,
-        bbox: const BBox(0, 0, 100, 100),
-      );
+    className: name,
+    confidence: 0.9,
+    bbox: const BBox(0, 0, 100, 100),
+  );
 
   test('aggregates per-class weights from detections', () {
     final result = ScanController.computeResult(
@@ -28,11 +28,13 @@ void main() {
     );
 
     expect(result.ingredientWeights.keys, containsAll(['tomato', 'onion']));
-    expect(result.ingredientWeights['tomato']! / result.ingredientWeights['onion']!,
-        closeTo(2 * 950 / 850, 1e-9)); // two tomatoes, density ratio
+    expect(
+      result.ingredientWeights['tomato']! / result.ingredientWeights['onion']!,
+      closeTo(2 * 950 / 850, 1e-9),
+    ); // two tomatoes, density ratio
   });
 
-  test('density override changes weight proportionally (G7)', () {
+  test('density override changes weight proportionally (G6)', () {
     final base = ScanController.computeResult(
       detections: [box('tomato')],
       depthMap: depth,
@@ -47,11 +49,13 @@ void main() {
       densityOverrides: {'tomato': 475.0}, // half of 950
     );
 
-    expect(overridden.ingredientWeights['tomato']!,
-        closeTo(base.ingredientWeights['tomato']! / 2, 1e-6));
+    expect(
+      overridden.ingredientWeights['tomato']!,
+      closeTo(base.ingredientWeights['tomato']! / 2, 1e-6),
+    );
   });
 
-  test('distance correction scales spherical weight by depth^3 (G7)', () {
+  test('distance correction scales spherical weight by depth^3 (G6)', () {
     final base = ScanController.computeResult(
       detections: [box('tomato')], // sphere
       depthMap: depth,
@@ -66,8 +70,10 @@ void main() {
       depthScale: 2.0, // both real dims double -> volume x8
     );
 
-    expect(scaled.ingredientWeights['tomato']!,
-        closeTo(base.ingredientWeights['tomato']! * 8, 1e-6));
+    expect(
+      scaled.ingredientWeights['tomato']!,
+      closeTo(base.ingredientWeights['tomato']! * 8, 1e-6),
+    );
   });
 
   test('manual detections contribute to the result', () {
@@ -90,21 +96,25 @@ void main() {
     expect(result.items.single.densityKgM3, 800.0);
   });
 
-  test('distance correction makes the anchored object read the set distance (S15)', () {
-    final raw = _constantDepth(200, 200, 0.8); // model says 0.8 m
-    final det = box('tomato');
-    final rawMedian = raw.medianIn(det.bbox)!;
-    const realDistance = 0.4; // user says it is actually 0.4 m
-    final scale = realDistance / rawMedian; // how applyDistanceCorrection derives it
+  test(
+    'distance correction makes the anchored object read the set distance (S15)',
+    () {
+      final raw = _constantDepth(200, 200, 0.8); // model says 0.8 m
+      final det = box('tomato');
+      final rawMedian = raw.medianIn(det.bbox)!;
+      const realDistance = 0.4; // user says it is actually 0.4 m
+      final scale =
+          realDistance / rawMedian; // how applyDistanceCorrection derives it
 
-    final result = ScanController.computeResult(
-      detections: [det],
-      depthMap: raw,
-      focalPx: 800,
-      baselineDensities: baseline,
-      depthScale: scale,
-    );
+      final result = ScanController.computeResult(
+        detections: [det],
+        depthMap: raw,
+        focalPx: 800,
+        baselineDensities: baseline,
+        depthScale: scale,
+      );
 
-    expect(result.items.single.depthM, closeTo(realDistance, 1e-6));
-  });
+      expect(result.items.single.depthM, closeTo(realDistance, 1e-6));
+    },
+  );
 }

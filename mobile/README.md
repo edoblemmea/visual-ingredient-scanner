@@ -1,7 +1,7 @@
 # Foodie Lens Mobile
 
 Flutter app for on-device ingredient detection, metric depth estimation, weight
-estimation, and recipe generation.
+estimation, manual correction, and recipe generation.
 
 ## Run
 
@@ -25,3 +25,22 @@ Models are bundled as Flutter assets under `assets/models/`.
 Depth Anything uses ONNX external data, so both
 `depth_anything_v2_small.onnx` and `depth_anything_v2_small.onnx.data` must stay
 beside each other in the asset bundle.
+
+## Feature Status
+
+| Feature | Status |
+|---|---|
+| Camera capture and bundled sample images | Done |
+| ONNX detector/depth inference off the UI thread | Done |
+| Weight estimation from depth, focal length, shape, and density | Done |
+| Settings persistence, model selection, confidence threshold | Done |
+| Editable density table with live recompute | Done |
+| Optional bbox/depth developer views | Done |
+| Manual distance/scale correction | Done |
+| Manual annotation, smart lasso boxes, relabel/remove | Done |
+| Gemini recipes with no-key/network fallback | Done |
+| S17 error/empty-state polish and scan timing | Done |
+
+Enable either developer-view toggle in Settings to show scan timing, detection
+count, weighed item count, and active distance-correction scale on the result
+screen.

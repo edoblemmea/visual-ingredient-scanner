@@ -7,7 +7,7 @@ import '../services/settings_repository.dart';
 
 /// Holds the live [AppSettings] and persists every change. Each mutator updates
 /// in-memory state, notifies listeners immediately (responsive UI), then writes
-/// through to [SettingsRepository] (G4). The registry supplies the defaults used
+/// through to [SettingsRepository] (G3). The registry supplies the defaults used
 /// to resolve an unset model selection.
 class SettingsProvider extends ChangeNotifier {
   SettingsProvider({
@@ -24,7 +24,7 @@ class SettingsProvider extends ChangeNotifier {
 
   AppSettings get settings => _settings;
 
-  /// Selected models, resolving null choices to the registry defaults (G5).
+  /// Selected models, resolving null choices to the registry defaults (G4).
   ModelChoice get modelChoice => _settings.modelChoice(
     _registry.defaultDetector.id,
     _registry.defaultDepth.id,

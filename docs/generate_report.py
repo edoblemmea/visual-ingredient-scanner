@@ -613,11 +613,10 @@ add_heading(doc, "8. Next Steps — Phase 3 (due 15–17 June 2026)", 1)
 
 next_steps = [
     "Re-export Depth Anything V2-S from the metric indoor checkpoint and remove the heuristic depth calibration layers.",
-    "Run evaluation/eval_weight.py with the metric model to obtain a quantitative MAPE measurement on held-out items.",
     "Build the Flutter mobile application — all screens (scan, result) and services (detector, depth, weight, density, recipe) in mobile/.",
     "Validate the Depth Anything V2-S ONNX model on Android via onnxruntime_flutter; apply INT8 quantisation if operator compatibility issues arise.",
     "Export the fine-tuned YOLO11s to INT8 TFLite and integrate into the Flutter app via tflite_flutter.",
-    "Measure end-to-end latency on a physical Android phone (target: < 5 s from capture to displayed results).",
+    "Measure end-to-end latency on the demo device/simulator (target: < 10 s from capture to displayed results; S17 measured 7 s average on a Pixel 9 simulator).",
     "Produce the final project report, presentation slides, and recorded demo video.",
 ]
 

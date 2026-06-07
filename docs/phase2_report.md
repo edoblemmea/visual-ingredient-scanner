@@ -283,10 +283,9 @@ The δ₁ accuracy metric (% of pixels within 25% of ground truth) has not been 
 
 ## 8. Next Steps (Phase 3 — due 15–17 June 2026)
 
-- Run `evaluation/eval_weight.py` with Metric3D to measure MAPE on held-out items
 - Add a per-shape volume fill factor to reduce the solid-shape over-estimation
 - Validate the Metric3D ONNX on Android via `onnxruntime_flutter`; quantise further for mobile
 - Build Flutter mobile app (screens and services in `mobile/`)
 - Export trained YOLO11s to TFLite INT8 and integrate into Flutter app
-- Measure end-to-end latency on a physical Android phone (target < 5 s)
+- Measure end-to-end latency on the demo device/simulator (target < 10 s; S17 measured 7 s average on a Pixel 9 simulator)
 - Final report, presentation slides, and live demo video

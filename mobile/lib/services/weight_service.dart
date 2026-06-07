@@ -35,7 +35,7 @@ const Set<String> _cylinderClasses = {
 
 /// Stage ④ — pinhole projection + shape heuristics. Pure Dart port of
 /// `estimate_weights` in `pipeline/weight.py`; no model inference, so it is
-/// cheap to re-run for the distance/density/manual-box corrections (G7).
+/// cheap to re-run for the distance/density/manual-box corrections (G6).
 class WeightService {
   const WeightService({required this.densityService});
 
@@ -59,16 +59,18 @@ class WeightService {
       final volume = volumeM3(shape, realW, realH);
       final density = densityService.densityFor(det.className);
 
-      results.add(WeightedItem(
-        detection: det,
-        shape: shape,
-        depthM: depthM,
-        realWidthM: realW,
-        realHeightM: realH,
-        volumeM3: volume,
-        densityKgM3: density,
-        weightG: volume * density * 1000.0,
-      ));
+      results.add(
+        WeightedItem(
+          detection: det,
+          shape: shape,
+          depthM: depthM,
+          realWidthM: realW,
+          realHeightM: realH,
+          volumeM3: volume,
+          densityKgM3: density,
+          weightG: volume * density * 1000.0,
+        ),
+      );
     }
     return results;
   }

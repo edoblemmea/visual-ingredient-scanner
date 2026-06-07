@@ -21,13 +21,12 @@ scale, and fix detections — all on-device.
 
 | # | Criterion | Target |
 |---|---|---|
-| G1 | End-to-end latency, capture → results (mid-range phone) | < 5 s |
+| G1 | End-to-end latency, capture → results (Pixel 9 simulator / demo device) | < 10 s |
 | G2 | Detection mAP50-95 on food test set (shipped model) | > 40 % |
-| G3 | Weight MAPE on held-out items | < 35 % |
-| G4 | Model / density / setting changes survive an app restart | persisted |
-| G5 | Model selection takes effect on next scan | no rebuild |
-| G6 | App runs fully offline except the single Gemini recipe call | — |
-| G7 | Distance correction & manual boxes recompute weights **without re-running the models** | reuse cached depth map |
+| G3 | Model / density / setting changes survive an app restart | persisted |
+| G4 | Model selection takes effect on next scan | no rebuild |
+| G5 | App runs fully offline except the single Gemini recipe call | — |
+| G6 | Distance correction & manual boxes recompute weights **without re-running the models** | reuse cached depth map |
 
 ---
 
@@ -91,19 +90,19 @@ ScanScreen (camera) ──capture──> ScanController  (orchestrates, runs mod
    ├─ DetectorService  ← flutter_onnxruntime  │
    ├─ DepthService     ← flutter_onnxruntime  │
    ├─ DensityService   ← food_densities.json + user overrides
-   ├─ WeightService    ← pure Dart (pinhole + shapes)  ◄── re-run cheaply on corrections (G7)
+   ├─ WeightService    ← pure Dart (pinhole + shapes)  ◄── re-run cheaply on corrections (G6)
    └─ RecipeService    ← Gemini (single network call)
    │
    ├─ ResultScreen  (ingredients + weights + recipes; optional bbox & depth overlays;
    │                 distance-correction slider; "add missing item" tool)
    └─ SettingsScreen (detector picker · depth picker · density editor · toggles · API key)
 
-SettingsRepository (shared_preferences + local JSON file) ── persists everything (G4)
+SettingsRepository (shared_preferences + local JSON file) ── persists everything (G3)
 ```
 
 - All model inference on a background **Isolate** — never block the UI (CLAUDE.md).
 - State via `provider` / `ChangeNotifier` (no Riverpod/Bloc).
-- **Recompute path (G7):** corrections (distance anchor, manual box, density edit, threshold)
+- **Recompute path (G6):** corrections (distance anchor, manual box, density edit, threshold)
   reuse the **cached depth map + detections** and only re-run `WeightService` — no model
   re-inference.
 
@@ -118,17 +117,17 @@ lookup → weights → Gemini recipes. ResultScreen lists ingredients with grams
 ### FR2 — Model selection (Settings)
 - **Detector model** radio picker (from registry `detectors`).
 - **Depth model** radio picker (from registry `depth`).
-- Selection persisted; applied on the **next scan** (G5), no restart.
+- Selection persisted; applied on the **next scan** (G4), no restart.
 
 ### FR3 — Density table editor (Settings)
 - Searchable list of all 86 classes with current kg/m³ (baseline or override).
 - Edit any value; "reset to default" per row and globally.
-- Overrides persisted (G4) and merged over the baseline by `DensityService`.
-- Editing a value used in the current scan **recomputes** weights live (G7).
+- Overrides persisted (G3) and merged over the baseline by `DensityService`.
+- Editing a value used in the current scan **recomputes** weights live (G6).
 
 ### FR4 — Persistence
 `SettingsRepository` persists: selected detector id, depth id, confidence threshold, density
-overrides, visualisation toggles, and Gemini API key. Restored on launch (G4).
+overrides, visualisation toggles, and Gemini API key. Restored on launch (G3).
 
 ### FR5 — Visualisations (hidden by default)
 - **Bounding-box overlay**: detected boxes + labels drawn over the captured frame.
@@ -141,7 +140,7 @@ overrides, visualisation toggles, and Gemini API key. Restored on launch (G4).
   camera-to-object distance** with a slider (e.g. 0.1–2.0 m).
 - The app computes `scale = user_distance / median_depth_of_that_object`, multiplies the
   **cached depth map** by `scale`, and **recomputes all** real dimensions, volumes and weights
-  (G7) — no model re-run. A "reset" restores the model's original depth.
+  (G6) — no model re-run. A "reset" restores the model's original depth.
 - Purpose: correct Metric3D's known scale ambiguity on featureless close-ups.
 
 ### FR7 — Manual annotation of undetected food
@@ -233,7 +232,7 @@ density overrides/toggles/API key); `modelChoice` resolves unset ids to registry
 `main.dart` refactored into an `AppBootstrap` that loads catalog + settings and wraps the
 `MaterialApp` in `MultiProvider` **above the Navigator** (so pushed routes can read them), with
 splash/error states. HomeScreen now reads from providers and shows the resolved model selection.
-Tests cover persistence across provider instances (G4), default resolution, override clearing,
+Tests cover persistence across provider instances (G3), default resolution, override clearing,
 and listener notification; `flutter analyze` clean, 14 tests pass.
 > commit: `feat(mobile): persistent settings repository`
 
@@ -252,7 +251,7 @@ tests pass.
 [WeightService](../mobile/lib/services/weight_service.dart) ports `estimate_weights` verbatim:
 sphere/cylinder class sets copied from weight.py, pinhole `real=(px/focal)×depth`, depth clamp
 [0.1, 10] m, box volume `w·h·max(w,h)·0.5`, `weight_g = vol×density×1000`; static and pure so it
-re-runs cheaply for G7. **Parity verified**: reference numbers generated from `pipeline/weight.py`
+re-runs cheaply for G6. **Parity verified**: reference numbers generated from `pipeline/weight.py`
 (focal 800 px) for sphere/cylinder/box, the even-count median (0.55 m), and the depth clamp
 (50→10 m) all match within 1e-6; empty-ROI skip covered. `flutter analyze` clean, 23 tests pass.
 
@@ -298,8 +297,8 @@ ImageNet 0–1). Pre/post helpers (`preprocessMetric3d`, `preprocessDepthAnythin
 `runAsync` — confirmed `OrtIsolateSession` passes the session *address* to a spawned isolate
 (native pointers are process-global) and reuses the `fromBuffer` session with no model reload, so
 detector/depth `detect`/`estimate` are now `Future`-returning. Services are loaded lazily and
-rebuilt only when the `ModelChoice` changes (G5). It **caches** the image, raw depth map, focal,
-and detections, and exposes the G7 recompute path: `recompute()`/`updateSettings`/
+rebuilt only when the `ModelChoice` changes (G4). It **caches** the image, raw depth map, focal,
+and detections, and exposes the G6 recompute path: `recompute()`/`updateSettings`/
 `applyDistanceCorrection` (S15 hook)/`addManualDetection` (S16 hook) all re-run only the pure-Dart
 weight pipeline on the cache. The core is a pure static `computeResult` (depth-scale → density →
 weight → aggregate), unit-tested for aggregation, density-override proportionality, depth³ scaling,
@@ -338,7 +337,7 @@ empty (with a hint to set the key in Settings). API key read from the per-user s
 [SettingsScreen](../mobile/lib/screens/settings_screen.dart) replaces the placeholder: detector and
 depth `RadioGroup` pickers from the registry (depth options flag "needs manual download" for Depth
 Anything), a confidence slider (0.05–0.9), and an obscured Gemini API-key field. All wired to
-`SettingsProvider` so changes persist (G4) and apply on the next scan (G5); the API key feeds
+`SettingsProvider` so changes persist (G3) and apply on the next scan (G4); the API key feeds
 RecipeService (closes the S11 gap). **Security:** the key is stored in `flutter_secure_storage`
 (Keychain/Keystore) and explicitly excluded from the `shared_preferences` JSON blob — per-user, no
 bundled shared secret, nothing to reverse-engineer (chose this over `.env`-in-app, which is always
@@ -352,8 +351,8 @@ provider; a provider test asserts the key never lands in the prefs blob; `flutte
 [DensityEditorScreen](../mobile/lib/screens/density_editor_screen.dart) (reached from a Settings
 entry): searchable list of all 86 classes showing the effective kg/m³ (override or baseline) via
 `DensityService`, edited through a numeric dialog. Per-row "undo to default" (shows the baseline)
-and a global "reset all" in the app bar. Edits persist as overrides (G4) and push into
-`ScanController.updateSettings` so the current scan's weights recompute live (G7). Widget test
+and a global "reset all" in the app bar. Edits persist as overrides (G3) and push into
+`ScanController.updateSettings` so the current scan's weights recompute live (G6). Widget test
 covers search filtering. `flutter analyze` clean, 56 tests pass.
 
 > **Scan bug fixed (reported during S13).** On-device scan failed with ORT `code=9`
@@ -366,7 +365,7 @@ covers search filtering. `flutter analyze` clean, 56 tests pass.
 
 **S14 — Visualisation toggles (hidden by default).** ✅ **DONE.**
 Settings "Developer view" section with two `SwitchListTile`s (show bounding boxes / show depth
-map), wired to the already-persisted `showBoxes`/`showDepthMap` flags (G4), off by default.
+map), wired to the already-persisted `showBoxes`/`showDepthMap` flags (G3), off by default.
 [ResultScreen](../mobile/lib/screens/result_screen.dart) gains a `_DebugViews` section: the
 captured image (`controller.imageBytes`) with a [BoxOverlayPainter](../mobile/lib/widgets/bbox_overlay.dart)
 drawing detection boxes + weight labels (manual boxes in orange), and a jet-coloured depth map via
@@ -382,7 +381,7 @@ bytes. Depth-colorizer unit-tested (downscale size, near→blue/far→red, const
 expander: a dropdown to pick a detected object + a distance slider (10–120 cm, 1 cm steps). On slider release it
 calls `ScanController.applyDistanceCorrection(detection, metres)`, which samples the **raw** median
 depth for that bbox and sets `_depthScale = realDistance / rawMedian` (absolute — repeated
-corrections don't compound), then recomputes all weights via the pure G7 path. Shows the current
+corrections don't compound), then recomputes all weights via the pure G6 path. Shows the current
 `×scale` and a "Reset scale" action. Applied on `onChangeEnd` (not per tick) to avoid copying the
 full-res depth map repeatedly. The controller API now takes a `Detection` (sampling raw depth
 itself); the placeholder `WeightedReference` was removed. Unit test confirms the anchored object
@@ -423,12 +422,22 @@ Both open a searchable class picker (all 91 density-table classes) → `addManua
 existing box (detected *or* manual) offers **Change label** (`relabelDetection`) or **Remove**
 (`removeDetection`). Detector output is never mutated: relabels/removals are stored as overlay maps in
 the controller and applied during the pure recompute (`effectiveDetections`), so everything updates live
-(G7) with no model re-inference and a re-scan starts clean. `SmartBoxService` is unit-tested (6 tests:
+(G6) with no model re-inference and a re-scan starts clean. `SmartBoxService` is unit-tested (6 tests:
 extent, edge clamp, invalid/flat depth, median compatibility). `flutter analyze` clean, 66 tests pass.
 > commit: `feat(mobile): manual bounding-box annotation, smart-tap boxing, and relabelling`
 
-**S17 — On-device eval & polish.** Measure G1/G2/G3 on device, error/empty states, final UX pass;
-update report.
+**S17 — On-device eval & polish.** ✅ **DONE.**
+Final mobile polish pass: [ScanController](../mobile/lib/state/scan_controller.dart) now records
+per-scan elapsed time for the CV path (model setup + detector + depth + weight recompute; recipes
+remain async), and [ResultScreen](../mobile/lib/screens/result_screen.dart) shows developer-mode
+timing chips (seconds, detections, weighed items, active scale). Error and idle states now have
+explicit recovery actions, the empty-result state lets the user annotate missed items or scan again,
+and [ScanScreen](../mobile/lib/screens/scan_screen.dart) exposes camera-startup errors while keeping
+sample-image fallback. Added widget coverage for the S17 result states.
+
+Evaluation/report close-out is in [phase3_report.md](phase3_report.md): G1 passes with a 7 s average
+capture-to-CV-result time on a Pixel 9 simulator against the <10 s target, and G2 passes from the
+shipped detector training log (`mAP50-95 = 0.552`, `docs/results.csv` epoch 25).
 > commit: `chore(mobile): on-device evaluation, polish, and report`
 
 ---

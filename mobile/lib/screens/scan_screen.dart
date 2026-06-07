@@ -101,9 +101,9 @@ class _ScanScreenState extends State<ScanScreen> {
     final focalPx = focalPxFor(decoded);
     final controller = context.read<ScanController>();
     final settings = context.read<SettingsProvider>().settings;
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const ResultScreen()),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const ResultScreen()));
     controller.scan(
       decoded,
       focalPx: focalPx,
@@ -114,7 +114,9 @@ class _ScanScreenState extends State<ScanScreen> {
 
   void _showError(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -161,6 +163,14 @@ class _ScanScreenState extends State<ScanScreen> {
                   : 'Camera unavailable.\nPick a sample image below.',
               textAlign: TextAlign.center,
             ),
+            if (_cameraError != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                _cameraError!,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
           ],
         ),
       ),

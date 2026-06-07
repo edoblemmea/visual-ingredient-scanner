@@ -5,7 +5,7 @@ import 'weighted_item.dart';
 /// `pipeline/pipeline.py`: per-item weights, per-class totals, and recipes.
 ///
 /// The cached depth map + focal needed for the no-re-inference recompute path
-/// (FR6/FR7, G7) are held by the scan controller (S9), not here, so this stays a
+/// (FR6/FR7, G6) are held by the scan controller (S9), not here, so this stays a
 /// pure value object.
 class ScanResult {
   const ScanResult({
@@ -23,8 +23,11 @@ class ScanResult {
 
   bool get isEmpty => items.isEmpty;
 
-  static const ScanResult empty =
-      ScanResult(items: [], ingredientWeights: {}, recipes: []);
+  static const ScanResult empty = ScanResult(
+    items: [],
+    ingredientWeights: {},
+    recipes: [],
+  );
 
   /// Builds a result from weighted items, summing grams per class exactly as
   /// `pipeline.py` does. Recipes are attached later via [copyWith].
@@ -47,10 +50,9 @@ class ScanResult {
     List<WeightedItem>? items,
     Map<String, double>? ingredientWeights,
     List<Recipe>? recipes,
-  }) =>
-      ScanResult(
-        items: items ?? this.items,
-        ingredientWeights: ingredientWeights ?? this.ingredientWeights,
-        recipes: recipes ?? this.recipes,
-      );
+  }) => ScanResult(
+    items: items ?? this.items,
+    ingredientWeights: ingredientWeights ?? this.ingredientWeights,
+    recipes: recipes ?? this.recipes,
+  );
 }

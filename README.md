@@ -3,7 +3,7 @@
 > Computer Vision · Master MEI FIB · UPC · Spring 2026
 > Team: Pol Plana · Emma Nájera · Houda El Fezzak
 
-Point a phone camera at a fridge or kitchen counter, tap once, and get a list of detected ingredients with estimated weights and three ranked recipe suggestions — all powered by an on-device CV pipeline with a single lightweight Gemini API call.
+Point a phone camera at a fridge or kitchen counter, scan once, and get a list of detected ingredients with estimated weights and three ranked recipe suggestions. The mobile app also supports manual item annotation, relabelling, density overrides, distance/scale correction, and optional developer visualisations.
 
 ---
 
@@ -13,7 +13,7 @@ Point a phone camera at a fridge or kitchen counter, tap once, and get a list of
 Camera frame
      │
      ▼
-① YOLO11s ──────────────► bounding boxes + class labels   (on-device, ~20 MB TFLite)
+① YOLO v26m ONNX ───────► bounding boxes + class labels   (on-device, ~78 MB)
      │
      ▼
 ② Metric3D ViT-Small ───► metric depth map in metres      (on-device, ~75 MB fp16 ONNX)
@@ -27,7 +27,7 @@ Camera frame
 ⑤ Gemini recipe call ──────────────► 3 ranked recipes JSON  (cloud, once per scan)
 ```
 
-Stages ①–④ run entirely on-device — including density lookup, which is now a static curated table rather than an API call. Only stage ⑤ (recipe generation) touches the network, with a single Gemini 2.0 Flash Lite call per scan.
+Stages ①–④ run entirely on-device — including density lookup, which is now a static curated table rather than an API call. Only stage ⑤ (recipe generation) touches the network, with a single Gemini call per scan when an API key is configured.
 
 **Why Metric3D?** Absolute distance is what turns bounding-box pixels into real-world size. Earlier we used Depth Anything V2-S (metric-indoor), but that checkpoint was trained on room-scale scenes and is out-of-distribution for hand-held tabletop close-ups — it floors out around ~1 m and its absolute scale drifts with the background. Metric3D instead consumes the camera's **focal length** (from EXIF, or an `image_width × 0.8` fallback) through a canonical-camera transform, recovering true metric depth with no per-image calibration and no reference object. See [docs/phase2_report.md](docs/phase2_report.md) §4.2 for the full comparison and the one remaining limitation (featureless-background extreme close-ups).
 
@@ -40,7 +40,6 @@ visual-ingredient-scanner/
 ├── CLAUDE.md                     ← full project guide for Claude sessions
 ├── README.md                     ← this file
 ├── requirements.txt              ← Python deps (training + prototype)
-├── pubspec.yaml                  ← Flutter deps (mobile app)
 │
 ├── data/
 │   ├── classes.yaml              ← unified food class list
@@ -75,16 +74,13 @@ visual-ingredient-scanner/
 ├── prototype/
 │   └── app.py                    ← Gradio laptop demo (Phase 2 deliverable)
 │
-├── evaluation/
-│   ├── eval_detection.py         ← per-class mAP on test set
-│   ├── eval_depth.py             ← δ₁ accuracy
-│   └── eval_weight.py            ← weight estimation error (MAE, MAPE)
-│
 ├── mobile/                       ← Flutter app (Phase 3)
+│   ├── pubspec.yaml              ← Flutter deps
 │   ├── lib/
 │   │   ├── main.dart
 │   │   ├── screens/
 │   │   │   ├── scan_screen.dart
+│   │   │   ├── annotate_screen.dart
 │   │   │   └── result_screen.dart
 │   │   └── services/
 │   │       ├── detector_service.dart
@@ -99,6 +95,7 @@ visual-ingredient-scanner/
 ├── docs/
 │   ├── phase1_definition.pdf
 │   ├── phase2_report.md
+│   ├── phase3_prd.md
 │   └── phase3_report.md
 │
 └── notebooks/
@@ -163,6 +160,16 @@ The app compiles its CV models in as Flutter assets under `mobile/assets/`.
 | `assets/models/depth_anything_v2_small.onnx` (Depth Anything V2-S metric indoor graph) | ~2 MB | ✅ committed |
 | `assets/models/depth_anything_v2_small.onnx.data` (Depth Anything V2-S metric indoor weights) | ~99 MB | ✅ committed |
 
+#### Current mobile features
+
+- On-device detection, depth, density lookup, and weight estimation.
+- Camera capture plus bundled sample-image fallback.
+- Editable density table, model selection, confidence threshold, Gemini key/model settings.
+- Manual scale correction using a known camera-to-object distance.
+- Manual annotation, smart lasso boxes, relabelling, and removing detections.
+- Optional developer views for bounding boxes, depth maps, scan timing, detection counts, and active scale.
+- Graceful error, empty-result, and no-recipe fallback states.
+
 #### Run on an Android emulator
 
 Requires Android Studio with the Android SDK + an AVD (virtual device) installed. List the
@@ -211,14 +218,12 @@ The depth stage auto-selects its preprocessing from the chosen ONNX, so any of t
 
 ---
 
-## Evaluation targets
+## Evaluation status
 
-| Stage | Metric | Target |
+| Goal | Target | Current state |
 |---|---|---|
-| Detection | mAP50-95 on food test set | > 40 % |
-| Depth | δ₁ accuracy | > 0.75 |
-| Weight estimation | MAPE | < 35 % |
-| End-to-end latency (phone) | capture → results | < 5 s |
+| G1 latency | Capture → CV results < 10 s | 7 s average on Pixel 9 simulator |
+| G2 detection | mAP50-95 > 40 % | 0.552 from `docs/results.csv` epoch 25 |
 
 ---
 

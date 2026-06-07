@@ -32,7 +32,7 @@ void main() {
   });
 
   test(
-    'changes persist across provider instances, key via secure storage (G4)',
+    'changes persist across provider instances, key via secure storage (G3)',
     () async {
       final registry = await AssetCatalog.loadRegistry();
 

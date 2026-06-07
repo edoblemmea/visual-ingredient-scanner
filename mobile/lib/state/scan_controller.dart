@@ -21,7 +21,7 @@ enum ScanStatus { idle, running, success, error }
 /// Orchestrates a scan (detect → depth → density → weight) using the selected
 /// models, and caches the detections + raw depth map + focal so corrections
 /// (density edits, distance anchor, manual boxes) recompute weights **without
-/// re-running the models** (G7).
+/// re-running the models** (G6).
 ///
 /// Model inference runs off the UI thread via the services' `runAsync` (ORT
 /// isolate). The weight recompute is pure Dart.
@@ -33,8 +33,9 @@ class ScanController extends ChangeNotifier {
   ScanStatus status = ScanStatus.idle;
   String? error;
   ScanResult result = ScanResult.empty;
+  Duration? scanDuration;
 
-  // Cached scan state for the recompute path (G7).
+  // Cached scan state for the recompute path (G6).
   img.Image? _image;
   // Original encoded capture, for the debug overlay (S14).
   Uint8List? _imageBytes;
@@ -80,8 +81,10 @@ class ScanController extends ChangeNotifier {
     required AppSettings settings,
     Uint8List? imageBytes,
   }) async {
+    final stopwatch = Stopwatch()..start();
     status = ScanStatus.running;
     error = null;
+    scanDuration = null;
     notifyListeners();
     try {
       await _ensureServices(settings);
@@ -103,8 +106,10 @@ class ScanController extends ChangeNotifier {
       _removed.clear();
 
       _rebuild();
+      scanDuration = stopwatch.elapsed;
       status = ScanStatus.success;
     } catch (e) {
+      scanDuration = stopwatch.elapsed;
       error = e.toString();
       status = ScanStatus.error;
       notifyListeners();
@@ -164,7 +169,7 @@ class ScanController extends ChangeNotifier {
   }
 
   /// Re-applies the weight pipeline to the cached depth + detections under the
-  /// current settings/correction state (G7). Used by S13/S15/S16.
+  /// current settings/correction state (G6). Used by S13/S15/S16.
   void recompute() {
     if (_depthMap == null) return;
     _rebuild();
@@ -241,8 +246,10 @@ class ScanController extends ChangeNotifier {
   void relabelDetection(Detection detection, String newClass) {
     final manualIndex = _manualDetections.indexOf(detection);
     if (manualIndex >= 0) {
-      _manualDetections[manualIndex] =
-          detection.copyWith(className: newClass, classId: null);
+      _manualDetections[manualIndex] = detection.copyWith(
+        className: newClass,
+        classId: null,
+      );
       recompute();
       return;
     }
@@ -266,9 +273,9 @@ class ScanController extends ChangeNotifier {
     for (final det in _detections) {
       if (_removed.contains(det)) continue;
       final relabel = _relabels[det];
-      out.add(relabel == null
-          ? det
-          : det.copyWith(className: relabel, classId: null));
+      out.add(
+        relabel == null ? det : det.copyWith(className: relabel, classId: null),
+      );
     }
     out.addAll(_manualDetections);
     return out;

@@ -28,15 +28,16 @@ The full CV pipeline runs on-device; only one lightweight Gemini API call (recip
 | Phase 3 presentation | 16–18 June 2026 | Live phone demo |
 | Phase 4 peer eval | 22 June 2026 | Peer grading |
 
-**Current priority (Phase 2):** fine-tune YOLO11s, run Metric3D ViT-Small for metric
-depth, implement weight estimation in Python, build a Gradio laptop prototype end-to-end.
+**Current priority (Phase 3 close-out):** the Flutter mobile app is feature-complete
+through S17. Keep docs, tests, demo notes, and evaluation claims aligned with the
+shipped mobile state.
 
 ---
 
 ## Five-stage CV pipeline
 
 ```
-① YOLO11s          → bounding boxes + class labels        (on-device)
+① YOLO v26m ONNX   → bounding boxes + class labels        (on-device)
 ② Metric3D ViT-Small → metric depth map in m              (on-device)
 ③ Static density table → kg/m³ per class (JSON)           (on-device, no network)
 ④ Pinhole + shape heuristics → weight per item in grams   (on-device Dart)
@@ -54,13 +55,13 @@ depth, implement weight estimation in Python, build a Gradio laptop prototype en
 >    inferred from pixels and doesn't change, so a curated static table is simpler,
 >    offline, and free. Stage ⑤ is now the only cloud call.
 
-### Stage ① — YOLO11s
+### Stage ① — YOLO v26m ONNX
 
-- Model family: Ultralytics YOLO11, small variant (YOLO11s)
-- ~9.4 M params, ~20 MB after INT8 quantisation, 47.0 mAP50-95 on COCO
-- Export targets: TFLite (Android) via `ultralytics export format=tflite int8=True`,
-  CoreML (iOS) via `ultralytics export format=coreml`
-- Flutter plugin: `tflite_flutter`
+- Mobile model family: YOLO v26m ONNX, with epoch30, epoch40, and best checkpoints
+  bundled under `mobile/assets/models/`; epoch40 is the default detector.
+- Flutter runtime: `flutter_onnxruntime`
+- Phase 2 YOLO11s artifacts are retained under `models/yolo/v11s/` for prototype
+  history, but the shipped mobile app uses the v26m ONNX assets.
 - Training: fine-tune on a curated food dataset assembled on Roboflow Universe
 - Training environment: Google Colab, T4 GPU, PyTorch + Ultralytics
 
@@ -156,7 +157,6 @@ visual-ingredient-scanner/
 ├── README.md
 ├── .gitignore
 ├── requirements.txt           ← Python (training + prototype)
-├── pubspec.yaml               ← Flutter (mobile app)
 │
 ├── data/
 │   ├── food_densities.json    ← static bulk densities, kg/m³ (109 classes)
@@ -169,8 +169,7 @@ visual-ingredient-scanner/
 │   ├── yolo/                  ← variant sub-folders (v11s/, v26m/)
 │   │   ├── yolo11s.pt         ← base checkpoint (gitignored if >100 MB)
 │   │   ├── food_detector.pt   ← fine-tuned checkpoint
-│   │   ├── food_detector.tflite  ← INT8 export for Android
-│   │   └── food_detector.mlmodel ← CoreML export for iOS
+│   │   └── v26m/...           ← shipped mobile detector checkpoints/exports
 │   └── depth/
 │       ├── metric3d-vit-small-fp16.onnx  ← Metric3D fp16 (~75 MB, default)
 │       ├── metric3d-vit-small.onnx       ← Metric3D fp32 (~150 MB)
@@ -193,20 +192,16 @@ visual-ingredient-scanner/
 ├── prototype/
 │   └── app.py                 ← Gradio laptop demo (Phase 2 deliverable)
 │
-├── evaluation/
-│   ├── eval_detection.py      ← per-class mAP on held-out test set
-│   ├── eval_depth.py          ← δ₁ accuracy on indoor scenes
-│   └── eval_weight.py         ← weight estimation error analysis (MAE, MAPE)
-│
 ├── mobile/                    ← Flutter app (Phase 3)
 │   ├── lib/
 │   │   ├── main.dart
 │   │   ├── screens/
 │   │   │   ├── scan_screen.dart
+│   │   │   ├── annotate_screen.dart
 │   │   │   └── result_screen.dart
 │   │   ├── services/
-│   │   │   ├── detector_service.dart   ← tflite_flutter wrapper
-│   │   │   ├── depth_service.dart      ← onnxruntime_flutter wrapper (Metric3D)
+│   │   │   ├── detector_service.dart   ← ONNX Runtime wrapper
+│   │   │   ├── depth_service.dart      ← ONNX Runtime wrapper (Metric3D/Depth Anything)
 │   │   │   ├── weight_service.dart     ← pinhole + heuristics in Dart
 │   │   │   ├── density_service.dart    ← static food_densities.json lookup
 │   │   │   └── recipe_service.dart     ← Gemini recipe call
@@ -215,9 +210,12 @@ visual-ingredient-scanner/
 │   │       └── recipe.dart
 │   ├── assets/
 │   │   ├── models/
-│   │   │   ├── food_detector.tflite
+│   │   │   ├── epoch40.onnx
+│   │   │   ├── epoch30.onnx
+│   │   │   ├── food_detector_v26m_best.onnx
 │   │   │   └── metric3d-vit-small-fp16.onnx
-│   │   └── food_densities.json
+│   │   ├── data/
+│   │   └── samples/
 │   ├── android/
 │   ├── ios/
 │   └── pubspec.yaml
@@ -274,8 +272,7 @@ visual-ingredient-scanner/
 |---|---|---|
 | Detection | mAP50-95 on food test set | > 40 % |
 | Depth | δ₁ (% pixels within 25 % of GT) | > 0.75 |
-| Weight estimation | MAPE on held-out items | < 35 % |
-| End-to-end latency (phone) | Wall-clock from capture to results | < 5 s |
+| End-to-end latency (Pixel 9 simulator / demo device) | Wall-clock from capture to CV results | < 10 s (7 s avg measured) |
 
 ---
 
