@@ -69,7 +69,7 @@ class SettingsScreen extends StatelessWidget {
           const _SectionHeader('Detection confidence'),
           _ConfidenceSlider(settings: settings),
           const Divider(),
-          const _SectionHeader('Developer view'),
+          const _SectionHeader('Advanced settings'),
           SwitchListTile(
             title: const Text('Show bounding boxes'),
             subtitle: const Text('Overlay detections on the scanned image'),
@@ -82,8 +82,6 @@ class SettingsScreen extends StatelessWidget {
             value: settings.settings.showDepthMap,
             onChanged: settings.setShowDepthMap,
           ),
-          const Divider(),
-          const _SectionHeader('Scan screen'),
           SwitchListTile(
             title: const Text('Show sample images'),
             subtitle: const Text('Display bundled demo images beside Gallery'),

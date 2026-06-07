@@ -322,7 +322,7 @@ class _RecipePage extends StatelessWidget {
                 runSpacing: 4,
                 children: [
                   for (final ingredient in recipe.ingredientsUsed)
-                    _CompactIngredientChip(label: ingredient),
+                    _RecipeIngredientChip(label: ingredient),
                 ],
               ),
             ],
@@ -352,6 +352,22 @@ class _RecipePage extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _RecipeIngredientChip extends StatelessWidget {
+  const _RecipeIngredientChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Chip(
+      label: Text(label),
+      labelPadding: const EdgeInsets.symmetric(horizontal: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
     );
   }
 }

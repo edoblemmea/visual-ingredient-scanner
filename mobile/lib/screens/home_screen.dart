@@ -61,33 +61,31 @@ class HomeScreen extends StatelessWidget {
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       const SizedBox(height: 28),
-                      Row(
+                      Column(
                         children: [
-                          Expanded(
-                            child: SizedBox(
-                              height: 64,
-                              child: FilledButton.icon(
-                                icon: const Icon(Icons.camera_alt),
-                                label: const Text('Scan'),
-                                onPressed: () => Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => const ScanScreen(),
-                                  ),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 64,
+                            child: FilledButton.icon(
+                              icon: const Icon(Icons.camera_alt),
+                              label: const Text('Scan'),
+                              onPressed: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const ScanScreen(),
                                 ),
                               ),
                             ),
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: SizedBox(
-                              height: 64,
-                              child: OutlinedButton.icon(
-                                icon: const Icon(Icons.bookmarks_outlined),
-                                label: const Text('My recipes'),
-                                onPressed: () => Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => const SavedRecipesScreen(),
-                                  ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 64,
+                            child: OutlinedButton.icon(
+                              icon: const Icon(Icons.bookmarks_outlined),
+                              label: const Text('My recipes'),
+                              onPressed: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const SavedRecipesScreen(),
                                 ),
                               ),
                             ),

@@ -142,12 +142,18 @@ class _ScanScreenState extends State<ScanScreen> {
         requestOption: requestOption,
       );
       if (!permission.hasAccess) return;
+      final filter = FilterOptionGroup(
+        orders: const [
+          OrderOption(type: OrderOptionType.createDate, asc: false),
+        ],
+      );
       final albums = await PhotoManager.getAssetPathList(
         onlyAll: true,
         type: RequestType.image,
+        filterOption: filter,
       );
       if (albums.isEmpty) return;
-      final assets = await albums.first.getAssetListPaged(page: 0, size: 24);
+      final assets = await albums.first.getAssetListPaged(page: 0, size: 20);
       if (mounted) setState(() => _galleryAssets = assets);
     } catch (e) {
       _showError(e.toString());
@@ -220,7 +226,6 @@ class _ScanScreenState extends State<ScanScreen> {
       body: Column(
         children: [
           Expanded(child: _preview()),
-          if (_camera != null) _captureBar(),
           _sampleStrip(),
         ],
       ),
@@ -239,6 +244,13 @@ class _ScanScreenState extends State<ScanScreen> {
               children: [
                 CameraPreview(camera),
                 if (_busy) const CircularProgressIndicator(),
+                Positioned(
+                  bottom: 16,
+                  child: FloatingActionButton.large(
+                    onPressed: _busy ? null : _capture,
+                    child: const Icon(Icons.camera),
+                  ),
+                ),
               ],
             ),
           ),
@@ -273,22 +285,6 @@ class _ScanScreenState extends State<ScanScreen> {
     );
   }
 
-  Widget _captureBar() {
-    return SafeArea(
-      top: false,
-      bottom: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
-        child: Center(
-          child: FloatingActionButton.large(
-            onPressed: _busy ? null : _capture,
-            child: const Icon(Icons.camera),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _sampleStrip() {
     final showSamples = context
         .watch<SettingsProvider>()
@@ -303,41 +299,30 @@ class _ScanScreenState extends State<ScanScreen> {
       child: Container(
         height: 96,
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        child: Row(
-          children: [
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 8),
-              child: Text('Photos'),
-            ),
-            Expanded(
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: itemCount,
-                separatorBuilder: (_, _) => const SizedBox(width: 8),
-                itemBuilder: (context, i) {
-                  if (i == 0) {
-                    return _GalleryTile(disabled: _busy, onTap: _pickGallery);
-                  }
-                  final galleryIndex = i - 1;
-                  if (galleryIndex < _galleryAssets.length) {
-                    final asset = _galleryAssets[galleryIndex];
-                    return _GalleryAssetTile(
-                      asset: asset,
-                      disabled: _busy,
-                      onTap: () => _pickGalleryAsset(asset),
-                    );
-                  }
-                  final sampleIndex = galleryIndex - _galleryAssets.length;
-                  final asset = kSampleImageAssets[sampleIndex];
-                  return _SampleTile(
-                    asset: asset,
-                    disabled: _busy,
-                    onTap: () => _pickSample(asset),
-                  );
-                },
-              ),
-            ),
-          ],
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: itemCount,
+          separatorBuilder: (_, _) => const SizedBox(width: 8),
+          itemBuilder: (context, i) {
+            final sampleCount = showSamples ? kSampleImageAssets.length : 0;
+            if (i < sampleCount) {
+              final asset = kSampleImageAssets[i];
+              return _SampleTile(
+                asset: asset,
+                disabled: _busy,
+                onTap: () => _pickSample(asset),
+              );
+            }
+            if (i == sampleCount) {
+              return _GalleryTile(disabled: _busy, onTap: _pickGallery);
+            }
+            final asset = _galleryAssets[i - sampleCount - 1];
+            return _GalleryAssetTile(
+              asset: asset,
+              disabled: _busy,
+              onTap: () => _pickGalleryAsset(asset),
+            );
+          },
         ),
       ),
     );

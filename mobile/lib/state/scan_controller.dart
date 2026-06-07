@@ -212,7 +212,10 @@ class ScanController extends ChangeNotifier {
 
   /// S16 — add a user-drawn box for a missed item, then recompute.
   void addManualDetection(Detection detection) {
-    _manualDetections.add(detection.copyWith(isManual: true));
+    final origin = detection.origin == DetectionOrigin.model
+        ? DetectionOrigin.manual
+        : detection.origin;
+    _manualDetections.add(detection.copyWith(origin: origin));
     recompute();
   }
 
@@ -224,7 +227,7 @@ class ScanController extends ChangeNotifier {
       recompute();
       return;
     }
-    _removed.add(detection);
+    _removed.add(detection.source ?? detection);
     recompute();
   }
 
@@ -236,15 +239,16 @@ class ScanController extends ChangeNotifier {
     if (manualIndex >= 0) {
       _manualDetections[manualIndex] = detection.copyWith(
         className: newClass,
-        classId: null,
+        clearClassId: true,
       );
       recompute();
       return;
     }
-    if (detection.className == newClass) {
-      _relabels.remove(detection);
+    final source = detection.source ?? detection;
+    if (source.className == newClass) {
+      _relabels.remove(source);
     } else {
-      _relabels[detection] = newClass;
+      _relabels[source] = newClass;
     }
     recompute();
   }
@@ -276,7 +280,14 @@ class ScanController extends ChangeNotifier {
       if (_removed.contains(det)) continue;
       final relabel = _relabels[det];
       out.add(
-        relabel == null ? det : det.copyWith(className: relabel, classId: null),
+        relabel == null
+            ? det
+            : det.copyWith(
+                className: relabel,
+                clearClassId: true,
+                isRelabeled: true,
+                source: det,
+              ),
       );
     }
     out.addAll(_manualDetections);

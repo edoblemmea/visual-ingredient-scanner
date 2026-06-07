@@ -247,7 +247,12 @@ class _AnnotateScreenState extends State<AnnotateScreen> {
       _toast(context, 'Circle a bit larger around the item.');
       return;
     }
-    await _pickClassAndAdd(context, controller, box);
+    await _pickClassAndAdd(
+      context,
+      controller,
+      box,
+      origin: DetectionOrigin.smart,
+    );
   }
 
   Future<void> _onManualDrawn(
@@ -264,6 +269,7 @@ class _AnnotateScreenState extends State<AnnotateScreen> {
       context,
       controller,
       box.clampTo(controller.imageWidth, controller.imageHeight),
+      origin: DetectionOrigin.manual,
     );
   }
 
@@ -289,13 +295,14 @@ class _AnnotateScreenState extends State<AnnotateScreen> {
   Future<void> _pickClassAndAdd(
     BuildContext context,
     ScanController controller,
-    BBox box,
-  ) async {
+    BBox box, {
+    required DetectionOrigin origin,
+  }) async {
     final cls = await _pickClass(context);
     if (cls == null) return;
     _dirty = true;
     controller.addManualDetection(
-      Detection(className: cls, confidence: 1.0, bbox: box, isManual: true),
+      Detection(className: cls, confidence: 1.0, bbox: box, origin: origin),
     );
   }
 
@@ -416,7 +423,7 @@ class _ClassPickerState extends State<_ClassPicker> {
   }
 }
 
-/// Paints existing detections (green = detected, orange = manual) plus the
+/// Paints existing detections plus the
 /// in-progress manual draft (dashed-ish solid blue) over the captured image.
 class _AnnotatePainter extends CustomPainter {
   _AnnotatePainter({
@@ -443,7 +450,7 @@ class _AnnotatePainter extends CustomPainter {
 
     for (final det in detections) {
       final b = det.bbox;
-      final color = det.isManual ? Colors.orangeAccent : Colors.greenAccent;
+      final color = _detectionColor(det);
       final rect = Rect.fromLTRB(b.x1 * sx, b.y1 * sy, b.x2 * sx, b.y2 * sy);
       canvas.drawRect(rect, stroke..color = color);
 
@@ -492,4 +499,13 @@ class _AnnotatePainter extends CustomPainter {
       old.loop != loop ||
       old.imageWidth != imageWidth ||
       old.imageHeight != imageHeight;
+
+  Color _detectionColor(Detection det) {
+    if (det.isRelabeled) return Colors.yellowAccent;
+    return switch (det.origin) {
+      DetectionOrigin.model => Colors.greenAccent,
+      DetectionOrigin.smart => Colors.lightBlueAccent,
+      DetectionOrigin.manual => Colors.orangeAccent,
+    };
+  }
 }

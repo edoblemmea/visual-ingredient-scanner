@@ -31,7 +31,26 @@ class _SavedRecipesScreenState extends State<SavedRecipesScreen> {
   }
 
   Future<void> _delete(SavedRecipe recipe) async {
-    await context.read<SavedRecipeRepository>().delete(recipe.id);
+    final repository = context.read<SavedRecipeRepository>();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete recipe?'),
+        content: Text('${recipe.recipe.name} will be removed from My recipes.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await repository.delete(recipe.id);
     if (!mounted) return;
     setState(_reload);
   }
@@ -157,7 +176,7 @@ class SavedRecipeDetailScreen extends StatelessWidget {
             runSpacing: 8,
             children: [
               for (final ingredient in recipe.ingredientsUsed)
-                Chip(label: Text(ingredient)),
+                _RecipeIngredientChip(label: ingredient),
             ],
           ),
           const SizedBox(height: 24),
@@ -180,6 +199,22 @@ class SavedRecipeDetailScreen extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+class _RecipeIngredientChip extends StatelessWidget {
+  const _RecipeIngredientChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Chip(
+      label: Text(label),
+      labelPadding: const EdgeInsets.symmetric(horizontal: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
     );
   }
 }

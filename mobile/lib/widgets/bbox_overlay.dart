@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../models/detection.dart';
 import '../models/weighted_item.dart';
 
 /// Draws detection boxes + labels over the captured image, scaling from the
-/// original image pixel space to the painted canvas. Manual (user-drawn) items
-/// are shown in a distinct colour. Used by the debug bbox overlay (FR5).
+/// original image pixel space to the painted canvas. Used by the debug bbox
+/// overlay (FR5).
 class BoxOverlayPainter extends CustomPainter {
   BoxOverlayPainter({
     required this.items,
@@ -26,8 +27,7 @@ class BoxOverlayPainter extends CustomPainter {
 
     for (final item in items) {
       final b = item.detection.bbox;
-      final color =
-          item.detection.isManual ? Colors.orangeAccent : Colors.greenAccent;
+      final color = _detectionColor(item.detection);
       final rect = Rect.fromLTRB(b.x1 * sx, b.y1 * sy, b.x2 * sx, b.y2 * sy);
       canvas.drawRect(rect, stroke..color = color);
 
@@ -58,4 +58,13 @@ class BoxOverlayPainter extends CustomPainter {
       old.items != items ||
       old.imageWidth != imageWidth ||
       old.imageHeight != imageHeight;
+
+  Color _detectionColor(Detection det) {
+    if (det.isRelabeled) return Colors.yellowAccent;
+    return switch (det.origin) {
+      DetectionOrigin.model => Colors.greenAccent,
+      DetectionOrigin.smart => Colors.lightBlueAccent,
+      DetectionOrigin.manual => Colors.orangeAccent,
+    };
+  }
 }
