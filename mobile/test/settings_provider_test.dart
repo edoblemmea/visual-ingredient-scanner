@@ -29,6 +29,8 @@ void main() {
 
     expect(provider.modelChoice.detectorId, 'v26m_e40');
     expect(provider.modelChoice.depthId, 'metric3d');
+    expect(provider.settings.showBoxes, isTrue);
+    expect(provider.settings.showDepthMap, isFalse);
   });
 
   test(

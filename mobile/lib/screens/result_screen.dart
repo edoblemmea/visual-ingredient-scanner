@@ -5,13 +5,13 @@ import 'package:provider/provider.dart';
 
 import '../models/app_settings.dart';
 import '../models/depth_map.dart';
-import '../models/recipe.dart';
 import '../models/weighted_item.dart';
 import '../services/depth_visualizer.dart';
 import '../state/scan_controller.dart';
 import '../state/settings_provider.dart';
 import '../widgets/bbox_overlay.dart';
 import 'annotate_screen.dart';
+import 'recipe_screen.dart';
 
 /// Shows the scan outcome: per-ingredient weights with expandable detail,
 /// recipes, and optional debug overlays (bbox / depth map, FR5).
@@ -79,13 +79,6 @@ class _ResultList extends StatelessWidget {
     return ListView(
       children: [
         if (showDebug)
-          _ScanStats(
-            duration: controller.scanDuration,
-            detections: controller.effectiveDetections.length,
-            items: items.length,
-            depthScale: controller.depthScale,
-          ),
-        if (showDebug)
           _DebugViews(
             imageBytes: controller.imageBytes,
             depthMap: controller.depthMap,
@@ -93,19 +86,71 @@ class _ResultList extends StatelessWidget {
             showBoxes: settings.showBoxes,
             showDepthMap: settings.showDepthMap,
           ),
+        _ResultHeader(
+          controller: controller,
+          items: items,
+          ingredientCount: result.ingredientWeights.length,
+        ),
+        _IngredientSummary(items: items),
+        const Divider(height: 24),
+        _DistanceCorrection(controller: controller, items: items),
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
-          child: Row(
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+          child: FilledButton.icon(
+            icon: const Icon(Icons.restaurant_menu),
+            label: const Text('Get recipes'),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => RecipeScreen(
+                  ingredientWeights: Map.unmodifiable(result.ingredientWeights),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ResultHeader extends StatelessWidget {
+  const _ResultHeader({
+    required this.controller,
+    required this.items,
+    required this.ingredientCount,
+  });
+
+  final ScanController controller;
+  final List<WeightedItem> items;
+  final int ingredientCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Confirm ingredients', style: theme.textTheme.headlineSmall),
+          const SizedBox(height: 8),
+          Text(
+            '$ingredientCount ingredients ready for recipe generation.',
+            style: theme.textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 12),
+          Row(
             children: [
               Expanded(
-                child: Text(
-                  '${items.length} items · ${result.ingredientWeights.length} ingredients',
-                  style: Theme.of(context).textTheme.titleMedium,
+                child: _ScanStats(
+                  duration: controller.scanDuration,
+                  items: items.length,
+                  depthScale: controller.depthScale,
                 ),
               ),
               TextButton.icon(
                 icon: const Icon(Icons.edit_location_alt_outlined),
-                label: const Text('Edit items'),
+                label: const Text('Edit'),
                 onPressed: controller.hasScan
                     ? () => Navigator.of(context).push(
                         MaterialPageRoute<void>(
@@ -116,18 +161,20 @@ class _ResultList extends StatelessWidget {
               ),
             ],
           ),
-        ),
-        for (final item in items) _ItemTile(item: item),
-        const Divider(height: 24),
-        _DistanceCorrection(controller: controller, items: items),
-        const Divider(height: 24),
-        _RecipesSection(
-          recipes: result.recipes,
-          loading: controller.recipesLoading,
-        ),
-      ],
+        ],
+      ),
     );
   }
+}
+
+class _IngredientSummary extends StatelessWidget {
+  const _IngredientSummary({required this.items});
+
+  final List<WeightedItem> items;
+
+  @override
+  Widget build(BuildContext context) =>
+      Column(children: [for (final item in items) _ItemTile(item: item)]);
 }
 
 class _ScanErrorState extends StatelessWidget {
@@ -202,7 +249,6 @@ class _EmptyResultState extends StatelessWidget {
         if (showTiming)
           _ScanStats(
             duration: controller.scanDuration,
-            detections: controller.effectiveDetections.length,
             items: 0,
             depthScale: controller.depthScale,
           ),
@@ -252,13 +298,11 @@ class _EmptyResultState extends StatelessWidget {
 class _ScanStats extends StatelessWidget {
   const _ScanStats({
     required this.duration,
-    required this.detections,
     required this.items,
     required this.depthScale,
   });
 
   final Duration? duration;
-  final int detections;
   final int items;
   final double depthScale;
 
@@ -277,10 +321,6 @@ class _ScanStats extends StatelessWidget {
         runSpacing: 8,
         children: [
           Chip(avatar: const Icon(Icons.timer, size: 18), label: Text(elapsed)),
-          Chip(
-            avatar: const Icon(Icons.label_outline, size: 18),
-            label: Text('$detections detections'),
-          ),
           Chip(
             avatar: const Icon(Icons.scale, size: 18),
             label: Text('$items weighed'),
@@ -512,113 +552,6 @@ class _LabeledView extends StatelessWidget {
           const SizedBox(height: 4),
           ClipRRect(borderRadius: BorderRadius.circular(8), child: child),
         ],
-      ),
-    );
-  }
-}
-
-class _RecipesSection extends StatelessWidget {
-  const _RecipesSection({required this.recipes, required this.loading});
-
-  final List<Recipe> recipes;
-  final bool loading;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-          child: Text(
-            'Recipes',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-        ),
-        if (loading)
-          const Padding(
-            padding: EdgeInsets.all(16),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                SizedBox(width: 12),
-                Text('Generating recipes…'),
-              ],
-            ),
-          )
-        else if (recipes.isEmpty)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Recipe service not available right now. Try again later.',
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Tip: set your Gemini API key in Settings.',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ),
-          )
-        else
-          for (final recipe in recipes) _RecipeCard(recipe: recipe),
-      ],
-    );
-  }
-}
-
-class _RecipeCard extends StatelessWidget {
-  const _RecipeCard({required this.recipe});
-
-  final Recipe recipe;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.fromLTRB(12, 4, 12, 8),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(recipe.name, style: Theme.of(context).textTheme.titleSmall),
-            if (recipe.servings > 0)
-              Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Text(
-                  '${recipe.servings} servings',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ),
-            if (recipe.ingredientsUsed.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Wrap(
-                  spacing: 6,
-                  runSpacing: 4,
-                  children: [
-                    for (final ing in recipe.ingredientsUsed)
-                      Chip(
-                        label: Text(ing),
-                        visualDensity: VisualDensity.compact,
-                      ),
-                  ],
-                ),
-              ),
-            for (var i = 0; i < recipe.steps.length; i++)
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Text('${i + 1}. ${recipe.steps[i]}'),
-              ),
-          ],
-        ),
       ),
     );
   }

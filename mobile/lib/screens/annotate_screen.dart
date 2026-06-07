@@ -26,6 +26,10 @@ class AnnotateScreen extends StatefulWidget {
 
 class _AnnotateScreenState extends State<AnnotateScreen> {
   bool _smart = true;
+  bool _done = false;
+  bool _allowPop = false;
+  bool _captured = false;
+  ScanEditSnapshot? _snapshot;
 
   // In-progress manual rectangle drag, in original-image pixel coordinates.
   Offset? _dragStart;
@@ -37,6 +41,10 @@ class _AnnotateScreenState extends State<AnnotateScreen> {
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<ScanController>();
+    if (!_captured && controller.hasScan) {
+      _snapshot = controller.captureEditState();
+      _captured = true;
+    }
     final imageBytes = controller.imageBytes;
     final imgW = controller.imageWidth;
     final imgH = controller.imageHeight;
@@ -48,15 +56,38 @@ class _AnnotateScreenState extends State<AnnotateScreen> {
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Annotate'),
-        actions: [
-          Row(
-            children: [
-              const Text('Smart'),
-              Switch(
+    return PopScope(
+      canPop: _allowPop,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _cancelAndClose(controller);
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Edit items'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                _done = true;
+                _close();
+              },
+              child: const Text('Done'),
+            ),
+          ],
+        ),
+        body: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+              child: SwitchListTile(
                 value: _smart,
+                secondary: const Icon(Icons.auto_fix_high),
+                title: const Text('Smart selection'),
+                subtitle: Text(
+                  _smart
+                      ? 'Circle a missed item, or tap a box to edit it.'
+                      : 'Drag a rectangle around a missed item.',
+                ),
                 onChanged: (v) => setState(() {
                   _smart = v;
                   _dragStart = null;
@@ -64,91 +95,94 @@ class _AnnotateScreenState extends State<AnnotateScreen> {
                   _loop.clear();
                 }),
               ),
-            ],
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Text(
-              _smart
-                  ? 'Circle a missed item — the box snaps to it using depth. '
-                        'Tap an existing box to edit it.'
-                  : 'Drag to draw a box around a missed item.',
-              style: Theme.of(context).textTheme.bodyMedium,
             ),
-          ),
-          Expanded(
-            child: Center(
-              child: AspectRatio(
-                aspectRatio: imgW / imgH,
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final sx = constraints.maxWidth / imgW;
-                    final sy = constraints.maxHeight / imgH;
-                    Offset toImage(Offset local) =>
-                        Offset(local.dx / sx, local.dy / sy);
+            Expanded(
+              child: Center(
+                child: InteractiveViewer(
+                  minScale: 1,
+                  maxScale: 4,
+                  child: AspectRatio(
+                    aspectRatio: imgW / imgH,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final sx = constraints.maxWidth / imgW;
+                        final sy = constraints.maxHeight / imgH;
+                        Offset toImage(Offset local) =>
+                            Offset(local.dx / sx, local.dy / sy);
 
-                    return GestureDetector(
-                      onTapUp: _smart
-                          ? (d) => _onSmartTap(
-                              context,
-                              controller,
-                              toImage(d.localPosition),
-                            )
-                          : (d) => _onExistingTap(
-                              context,
-                              controller,
-                              toImage(d.localPosition),
-                              sx,
-                              sy,
-                            ),
-                      onPanStart: (d) => setState(() {
-                        if (_smart) {
-                          _loop
-                            ..clear()
-                            ..add(toImage(d.localPosition));
-                        } else {
-                          _dragStart = toImage(d.localPosition);
-                          _dragCurrent = _dragStart;
-                        }
-                      }),
-                      onPanUpdate: (d) => setState(() {
-                        if (_smart) {
-                          _loop.add(toImage(d.localPosition));
-                        } else {
-                          _dragCurrent = toImage(d.localPosition);
-                        }
-                      }),
-                      onPanEnd: (_) => _smart
-                          ? _onLoopDrawn(context, controller)
-                          : _onManualDrawn(context, controller),
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          Image.memory(imageBytes, fit: BoxFit.fill),
-                          CustomPaint(
-                            painter: _AnnotatePainter(
-                              detections: controller.effectiveDetections,
-                              draft: _draftBox(),
-                              loop: List.unmodifiable(_loop),
-                              imageWidth: imgW,
-                              imageHeight: imgH,
-                            ),
+                        return GestureDetector(
+                          onTapUp: _smart
+                              ? (d) => _onSmartTap(
+                                  context,
+                                  controller,
+                                  toImage(d.localPosition),
+                                )
+                              : (d) => _onExistingTap(
+                                  context,
+                                  controller,
+                                  toImage(d.localPosition),
+                                ),
+                          onPanStart: (d) => setState(() {
+                            if (_smart) {
+                              _loop
+                                ..clear()
+                                ..add(toImage(d.localPosition));
+                            } else {
+                              _dragStart = toImage(d.localPosition);
+                              _dragCurrent = _dragStart;
+                            }
+                          }),
+                          onPanUpdate: (d) => setState(() {
+                            if (_smart) {
+                              _loop.add(toImage(d.localPosition));
+                            } else {
+                              _dragCurrent = toImage(d.localPosition);
+                            }
+                          }),
+                          onPanEnd: (_) => _smart
+                              ? _onLoopDrawn(context, controller)
+                              : _onManualDrawn(context, controller),
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              Image.memory(imageBytes, fit: BoxFit.fill),
+                              CustomPaint(
+                                painter: _AnnotatePainter(
+                                  detections: controller.effectiveDetections,
+                                  draft: _draftBox(),
+                                  loop: List.unmodifiable(_loop),
+                                  imageWidth: imgW,
+                                  imageHeight: imgH,
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    );
-                  },
+                        );
+                      },
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
+  }
+
+  void _cancelAndClose(ScanController controller) {
+    if (!_done) {
+      final snapshot = _snapshot;
+      if (snapshot != null) controller.restoreEditState(snapshot);
+    }
+    _close();
+  }
+
+  void _close() {
+    setState(() => _allowPop = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) Navigator.of(context).pop();
+    });
   }
 
   BBox? _draftBox() {
@@ -209,8 +243,6 @@ class _AnnotateScreenState extends State<AnnotateScreen> {
     BuildContext context,
     ScanController controller,
     Offset p,
-    double sx,
-    double sy,
   ) async {
     final hit = _hitTest(controller, p);
     if (hit != null) await _editExisting(context, controller, hit);

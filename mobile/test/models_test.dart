@@ -85,6 +85,10 @@ void main() {
 
     test('defaults Gemini model to 3.1 Flash Lite', () {
       expect(AppSettings.defaults.geminiModel, 'gemini-3.1-flash-lite');
+      expect(AppSettings.defaults.showBoxes, isTrue);
+      expect(AppSettings.defaults.showDepthMap, isFalse);
+      expect(AppSettings.fromJson(const {}).showBoxes, isTrue);
+      expect(AppSettings.fromJson(const {}).showDepthMap, isFalse);
       expect(
         AppSettings.fromJson(const {}).geminiModel,
         'gemini-3.1-flash-lite',

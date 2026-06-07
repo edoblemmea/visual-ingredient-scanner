@@ -22,7 +22,7 @@ class AppSettings {
     this.depthId,
     this.confidenceThreshold = kDefaultConfidence,
     this.densityOverrides = const {},
-    this.showBoxes = false,
+    this.showBoxes = true,
     this.showDepthMap = false,
     this.geminiModel = kDefaultGeminiModel,
     this.geminiApiKey = '',
@@ -97,7 +97,7 @@ class AppSettings {
           (k, v) => MapEntry(k as String, (v as num).toDouble()),
         ) ??
         const {},
-    showBoxes: json['showBoxes'] as bool? ?? false,
+    showBoxes: json['showBoxes'] as bool? ?? true,
     showDepthMap: json['showDepthMap'] as bool? ?? false,
     geminiModel: _geminiModelFromJson(json['geminiModel']),
   );

@@ -6,17 +6,27 @@ import '../models/bbox.dart';
 import '../models/depth_map.dart';
 import '../models/detection.dart';
 import '../models/model_choice.dart';
-import '../models/recipe.dart';
 import '../models/scan_result.dart';
 import '../services/asset_catalog.dart';
 import '../services/density_service.dart';
 import '../services/depth_service.dart';
 import '../services/detector_service.dart';
-import '../services/recipe_service.dart';
 import '../services/smart_box_service.dart';
 import '../services/weight_service.dart';
 
 enum ScanStatus { idle, running, success, error }
+
+class ScanEditSnapshot {
+  const ScanEditSnapshot({
+    required this.manualDetections,
+    required this.relabels,
+    required this.removed,
+  });
+
+  final List<Detection> manualDetections;
+  final Map<Detection, String> relabels;
+  final Set<Detection> removed;
+}
 
 /// Orchestrates a scan (detect → depth → density → weight) using the selected
 /// models, and caches the detections + raw depth map + focal so corrections
@@ -67,9 +77,6 @@ class ScanController extends ChangeNotifier {
             ? _depthMap
             : _rescaleDepth(_depthMap!, _depthScale));
 
-  bool _recipesLoading = false;
-  bool get recipesLoading => _recipesLoading;
-
   // Lazily-loaded inference services; rebuilt when the model selection changes.
   DetectorService? _detector;
   DepthService? _depth;
@@ -115,27 +122,8 @@ class ScanController extends ChangeNotifier {
       notifyListeners();
       return;
     }
-    notifyListeners(); // ingredients + weights ready; recipes load after
-    await _generateRecipes();
-  }
-
-  /// Stage ⑤ — fetch recipes for the current ingredients (non-blocking for the
-  /// weight display). Degrades silently to no recipes on any failure.
-  Future<void> _generateRecipes() async {
-    if (result.isEmpty) return;
-    _recipesLoading = true;
-    notifyListeners();
-    final recipes = await RecipeService(
-      apiKey: _settings.geminiApiKey,
-      modelName: _settings.geminiModel,
-    ).generate(result.ingredientWeights);
-    result = result.copyWith(recipes: recipes);
-    _recipesLoading = false;
     notifyListeners();
   }
-
-  /// Re-runs recipe generation on demand (e.g. after corrections change weights).
-  Future<void> regenerateRecipes() => _generateRecipes();
 
   Future<void> _ensureServices(AppSettings settings) async {
     final choice = settings.modelChoice(
@@ -261,9 +249,23 @@ class ScanController extends ChangeNotifier {
     recompute();
   }
 
-  void attachRecipes(List<Recipe> recipes) {
-    result = result.copyWith(recipes: recipes);
-    notifyListeners();
+  ScanEditSnapshot captureEditState() => ScanEditSnapshot(
+    manualDetections: List<Detection>.from(_manualDetections),
+    relabels: Map<Detection, String>.from(_relabels),
+    removed: Set<Detection>.from(_removed),
+  );
+
+  void restoreEditState(ScanEditSnapshot snapshot) {
+    _manualDetections
+      ..clear()
+      ..addAll(snapshot.manualDetections);
+    _relabels
+      ..clear()
+      ..addAll(snapshot.relabels);
+    _removed
+      ..clear()
+      ..addAll(snapshot.removed);
+    recompute();
   }
 
   /// Detector detections with the S16 edits applied (removals dropped, relabels
@@ -289,7 +291,6 @@ class ScanController extends ChangeNotifier {
       baselineDensities: catalog.densities,
       densityOverrides: _settings.densityOverrides,
       depthScale: _depthScale,
-      recipes: result.recipes,
     );
   }
 
@@ -309,7 +310,6 @@ class ScanController extends ChangeNotifier {
     required Map<String, double> baselineDensities,
     Map<String, double> densityOverrides = const {},
     double depthScale = 1.0,
-    List<Recipe> recipes = const [],
   }) {
     final depth = depthScale == 1.0
         ? depthMap
@@ -321,7 +321,7 @@ class ScanController extends ChangeNotifier {
     final items = WeightService(
       densityService: density,
     ).estimate(detections: detections, depthMap: depth, focalPx: focalPx);
-    return ScanResult.fromItems(items, recipes: recipes);
+    return ScanResult.fromItems(items);
   }
 
   static DepthMap _rescaleDepth(DepthMap source, double scale) {

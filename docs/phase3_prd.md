@@ -91,10 +91,12 @@ ScanScreen (camera) ──capture──> ScanController  (orchestrates, runs mod
    ├─ DepthService     ← flutter_onnxruntime  │
    ├─ DensityService   ← food_densities.json + user overrides
    ├─ WeightService    ← pure Dart (pinhole + shapes)  ◄── re-run cheaply on corrections (G6)
-   └─ RecipeService    ← Gemini (single network call)
+   └─ RecipeService    ← Gemini (single network call after ingredient confirmation)
    │
-   ├─ ResultScreen  (ingredients + weights + recipes; optional bbox & depth overlays;
-   │                 distance-correction slider; "add missing item" tool)
+   ├─ ResultScreen  (confirm ingredients + weights; bbox on by default; optional depth map;
+   │                 distance-correction slider; edit items)
+   ├─ RecipeScreen  (swipeable recipe cards; save; finish)
+   ├─ SavedRecipesScreen  (My recipes history)
    └─ SettingsScreen (detector picker · depth picker · density editor · toggles · API key)
 
 SettingsRepository (shared_preferences + local JSON file) ── persists everything (G3)
@@ -112,7 +114,9 @@ SettingsRepository (shared_preferences + local JSON file) ── persists everyt
 
 ### FR1 — Scan & results
 Live camera → single capture (EXIF/focal retained) → Isolate runs detector + depth → density
-lookup → weights → Gemini recipes. ResultScreen lists ingredients with grams + 3 recipe cards.
+lookup → weights. ResultScreen is the ingredient-confirmation step: it lists weighed items,
+shows bounding boxes by default, keeps the depth map off by default, offers scale adjustment,
+and then exposes a Get recipes action.
 
 ### FR2 — Model selection (Settings)
 - **Detector model** radio picker (from registry `detectors`).
@@ -129,11 +133,11 @@ lookup → weights → Gemini recipes. ResultScreen lists ingredients with grams
 `SettingsRepository` persists: selected detector id, depth id, confidence threshold, density
 overrides, visualisation toggles, and Gemini API key. Restored on launch (G3).
 
-### FR5 — Visualisations (hidden by default)
+### FR5 — Visualisations
 - **Bounding-box overlay**: detected boxes + labels drawn over the captured frame.
 - **Depth-map view**: colour-mapped depth (e.g. turbo/viridis) of the cached depth map.
-- Both **off by default**; toggled from a "Developer / debug view" section (ResultScreen
-  expander and/or Settings). Toggle state persisted.
+- Bounding boxes are **on by default**. The depth map is **off by default**. Toggle state
+  persisted.
 
 ### FR6 — Distance correction (manual scale anchor)
 - On ResultScreen, the user picks one detected (or manual) object and sets the **real
@@ -151,7 +155,9 @@ overrides, visualisation toggles, and Gemini API key. Restored on launch (G3).
 
 ### FR8 — Recipes
 `RecipeService` via `google_generative_ai`, `gemini-2.0-flash-lite`, JSON-validated 3 recipes,
-degrades to a "Recipe service not available right now. Try again later." state offline.
+generated only after the user confirms ingredients. RecipeScreen makes one Gemini call for that
+ingredient snapshot, displays swipeable cards, lets the user save recipes, and the home screen
+exposes saved recipes through My recipes.
 **API key is per-user**: entered in Settings and stored in `flutter_secure_storage`
 (Keychain/Keystore) — never bundled in the app and never written to the plaintext prefs blob, so
 there is no shared secret to extract by reverse-engineering. (No `.env` in the app: a bundled key

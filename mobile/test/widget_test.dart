@@ -18,6 +18,7 @@ void main() {
     expect(find.textContaining('classes loaded'), findsOneWidget);
     expect(find.textContaining('Detector:'), findsOneWidget);
     expect(find.textContaining('Depth:'), findsOneWidget);
-    expect(find.text('Scan'), findsOneWidget);
+    expect(find.text('Scan ingredients'), findsOneWidget);
+    expect(find.text('My recipes'), findsOneWidget);
   });
 }

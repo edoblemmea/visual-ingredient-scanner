@@ -6,5 +6,6 @@ export 'detection.dart';
 export 'model_choice.dart';
 export 'model_registry.dart';
 export 'recipe.dart';
+export 'saved_recipe.dart';
 export 'scan_result.dart';
 export 'weighted_item.dart';

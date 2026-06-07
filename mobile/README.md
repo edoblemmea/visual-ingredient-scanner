@@ -35,12 +35,13 @@ beside each other in the asset bundle.
 | Weight estimation from depth, focal length, shape, and density | Done |
 | Settings persistence, model selection, confidence threshold | Done |
 | Editable density table with live recompute | Done |
-| Optional bbox/depth developer views | Done |
+| Bounding boxes on by default; depth map off by default | Done |
 | Manual distance/scale correction | Done |
 | Manual annotation, smart lasso boxes, relabel/remove | Done |
-| Gemini recipes with no-key/network fallback | Done |
+| Confirm ingredients, then generate recipes with one Gemini call | Done |
+| Swipeable recipe view, saving, and My recipes history | Done |
 | S17 error/empty-state polish and scan timing | Done |
 
-Enable either developer-view toggle in Settings to show scan timing, detection
-count, weighed item count, and active distance-correction scale on the result
-screen.
+The result screen is the ingredient-confirmation step. It shows the scanned image
+with boxes, the weighed items, optional scale adjustment, and then a Get recipes
+button. Recipe generation happens only after that confirmation.

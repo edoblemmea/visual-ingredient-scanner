@@ -1,32 +1,39 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'screens/home_screen.dart';
 import 'services/asset_catalog.dart';
+import 'services/saved_recipe_repository.dart';
 import 'services/settings_repository.dart';
 import 'state/scan_controller.dart';
 import 'state/settings_provider.dart';
 
 void main() {
-  runApp(const AppBootstrap());
+  WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+  ]).then((_) => runApp(const AppBootstrap()));
 }
 
 class _Boot {
-  const _Boot(this.catalog, this.settings);
+  const _Boot(this.catalog, this.settings, this.savedRecipes);
   final AppCatalog catalog;
   final SettingsProvider settings;
+  final SavedRecipeRepository savedRecipes;
 }
 
 Future<_Boot> _bootstrap() async {
   final catalog = await AppCatalog.load();
   final repository = await SettingsRepository.create();
+  final savedRecipes = await SavedRecipeRepository.create();
   final initial = await repository.load();
   final settings = SettingsProvider(
     repository: repository,
     registry: catalog.registry,
     initial: initial,
   );
-  return _Boot(catalog, settings);
+  return _Boot(catalog, settings, savedRecipes);
 }
 
 /// Loads bundled assets + persisted settings before building the app. Providers
@@ -66,6 +73,7 @@ class _AppBootstrapState extends State<AppBootstrap> {
         return MultiProvider(
           providers: [
             Provider<AppCatalog>.value(value: boot.catalog),
+            Provider<SavedRecipeRepository>.value(value: boot.savedRecipes),
             ChangeNotifierProvider<SettingsProvider>.value(
               value: boot.settings,
             ),
