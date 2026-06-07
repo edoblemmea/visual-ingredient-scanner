@@ -93,7 +93,107 @@ class _ResultList extends StatelessWidget {
         ),
         for (final item in items) _ItemTile(item: item),
         const Divider(height: 24),
+        _DistanceCorrection(controller: controller, items: items),
+        const Divider(height: 24),
         _RecipesSection(recipes: result.recipes, loading: controller.recipesLoading),
+      ],
+    );
+  }
+}
+
+/// FR6 — manual scale anchor. Pick a detected object and set its real
+/// camera-to-object distance; the controller rescales the cached depth and
+/// recomputes all weights (G7). Applied on slider release to avoid copying the
+/// depth map on every tick.
+class _DistanceCorrection extends StatefulWidget {
+  const _DistanceCorrection({required this.controller, required this.items});
+
+  final ScanController controller;
+  final List<WeightedItem> items;
+
+  @override
+  State<_DistanceCorrection> createState() => _DistanceCorrectionState();
+}
+
+class _DistanceCorrectionState extends State<_DistanceCorrection> {
+  static const double _min = 0.05;
+  static const double _max = 2.0;
+
+  int _selected = 0;
+  late double _distanceM = _clampedDepth(widget.items[_selected]);
+
+  double _clampedDepth(WeightedItem item) =>
+      item.depthM.clamp(_min, _max).toDouble();
+
+  @override
+  Widget build(BuildContext context) {
+    final items = widget.items;
+    if (_selected >= items.length) _selected = 0;
+    final corrected = widget.controller.depthScale != 1.0;
+
+    return ExpansionTile(
+      leading: const Icon(Icons.straighten),
+      title: const Text('Adjust scale (optional)'),
+      subtitle: Text(
+        corrected
+            ? 'Scale ×${widget.controller.depthScale.toStringAsFixed(2)}'
+            : 'Set a known distance if sizes look off',
+      ),
+      childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      children: [
+        DropdownButton<int>(
+          isExpanded: true,
+          value: _selected,
+          items: [
+            for (var i = 0; i < items.length; i++)
+              DropdownMenuItem(
+                value: i,
+                child: Text(
+                  '${items[i].className} '
+                  '(${(items[i].depthM * 100).toStringAsFixed(0)} cm)',
+                ),
+              ),
+          ],
+          onChanged: (v) => setState(() {
+            _selected = v!;
+            _distanceM = _clampedDepth(items[_selected]);
+          }),
+        ),
+        Row(
+          children: [
+            Expanded(
+              child: Slider(
+                value: _distanceM.clamp(_min, _max),
+                min: _min,
+                max: _max,
+                divisions: ((_max - _min) / 0.05).round(),
+                label: '${(_distanceM * 100).round()} cm',
+                onChanged: (v) => setState(() => _distanceM = v),
+                onChangeEnd: (v) => widget.controller
+                    .applyDistanceCorrection(items[_selected].detection, v),
+              ),
+            ),
+            SizedBox(
+              width: 64,
+              child: Text(
+                '${(_distanceM * 100).round()} cm',
+                textAlign: TextAlign.end,
+              ),
+            ),
+          ],
+        ),
+        if (corrected)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              icon: const Icon(Icons.undo),
+              label: const Text('Reset scale'),
+              onPressed: () {
+                widget.controller.resetDistanceCorrection();
+                setState(() => _distanceM = _clampedDepth(items[_selected]));
+              },
+            ),
+          ),
       ],
     );
   }

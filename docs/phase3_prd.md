@@ -377,8 +377,16 @@ bytes. Depth-colorizer unit-tested (downscale size, near→blue/far→red, const
 `flutter analyze` clean, 55 tests pass.
 > commit: `feat(mobile): optional bbox overlay and depth-map view`
 
-**S15 — Distance correction slider.** Pick an object, set real distance, rescale cached depth,
-recompute all via WeightService; reset to model depth. (FR6, G7)
+**S15 — Distance correction slider.** ✅ **DONE.**
+[ResultScreen](../mobile/lib/screens/result_screen.dart) gains an "Adjust scale (optional)"
+expander: a dropdown to pick a detected object + a distance slider (5–200 cm). On slider release it
+calls `ScanController.applyDistanceCorrection(detection, metres)`, which samples the **raw** median
+depth for that bbox and sets `_depthScale = realDistance / rawMedian` (absolute — repeated
+corrections don't compound), then recomputes all weights via the pure G7 path. Shows the current
+`×scale` and a "Reset scale" action. Applied on `onChangeEnd` (not per tick) to avoid copying the
+full-res depth map repeatedly. The controller API now takes a `Detection` (sampling raw depth
+itself); the placeholder `WeightedReference` was removed. Unit test confirms the anchored object
+reads the set distance after correction. `flutter analyze` clean, 60 tests pass.
 > commit: `feat(mobile): manual distance/scale correction with recompute`
 
 **S16 — Manual annotation of undetected food.** Draw-rectangle tool + class picker from the

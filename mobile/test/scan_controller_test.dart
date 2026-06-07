@@ -89,4 +89,22 @@ void main() {
     );
     expect(result.items.single.densityKgM3, 800.0);
   });
+
+  test('distance correction makes the anchored object read the set distance (S15)', () {
+    final raw = _constantDepth(200, 200, 0.8); // model says 0.8 m
+    final det = box('tomato');
+    final rawMedian = raw.medianIn(det.bbox)!;
+    const realDistance = 0.4; // user says it is actually 0.4 m
+    final scale = realDistance / rawMedian; // how applyDistanceCorrection derives it
+
+    final result = ScanController.computeResult(
+      detections: [det],
+      depthMap: raw,
+      focalPx: 800,
+      baselineDensities: baseline,
+      depthScale: scale,
+    );
+
+    expect(result.items.single.depthM, closeTo(realDistance, 1e-6));
+  });
 }

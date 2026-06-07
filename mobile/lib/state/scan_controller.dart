@@ -169,11 +169,16 @@ class ScanController extends ChangeNotifier {
     recompute();
   }
 
-  /// S15 — distance correction: scale the cached depth so [item]'s sampled depth
-  /// equals [realDistanceM], then recompute everything.
-  void applyDistanceCorrection(WeightedReference item, double realDistanceM) {
-    if (item.measuredDepthM <= 0) return;
-    _depthScale = realDistanceM / item.measuredDepthM;
+  /// S15 — distance correction: rescale the cached depth so [detection]'s
+  /// sampled depth equals [realDistanceM], then recompute everything. The factor
+  /// is derived from the **raw** model depth (absolute), so repeated corrections
+  /// don't compound.
+  void applyDistanceCorrection(Detection detection, double realDistanceM) {
+    final depth = _depthMap;
+    if (depth == null || realDistanceM <= 0) return;
+    final rawMedian = depth.medianIn(detection.bbox);
+    if (rawMedian == null || rawMedian <= 0) return;
+    _depthScale = realDistanceM / rawMedian;
     recompute();
   }
 
@@ -248,11 +253,4 @@ class ScanController extends ChangeNotifier {
     }
     return DepthMap(width: source.width, height: source.height, data: scaled);
   }
-}
-
-/// Minimal reference to an item the user picked for distance correction (S15) —
-/// just the measured depth, so the controller can compute the rescale factor.
-class WeightedReference {
-  const WeightedReference(this.measuredDepthM);
-  final double measuredDepthM;
 }
