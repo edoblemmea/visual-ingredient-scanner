@@ -69,12 +69,13 @@ class _AnnotateScreenState extends State<AnnotateScreen> {
           actions: [
             Padding(
               padding: const EdgeInsets.only(right: 12),
-              child: FilledButton(
+              child: FilledButton.icon(
+                icon: const Icon(Icons.check),
+                label: const Text('Done'),
                 onPressed: () {
                   _done = true;
                   _close();
                 },
-                child: const Text('Done'),
               ),
             ),
           ],
@@ -480,7 +481,7 @@ class _AnnotatePainter extends CustomPainter {
         draft!.x2 * sx,
         draft!.y2 * sy,
       );
-      canvas.drawRect(r, stroke..color = Colors.lightBlueAccent);
+      canvas.drawRect(r, stroke..color = Colors.orangeAccent);
     }
 
     if (loop.length > 1) {

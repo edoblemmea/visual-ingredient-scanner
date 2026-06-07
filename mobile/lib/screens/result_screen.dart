@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../models/app_settings.dart';
 import '../models/depth_map.dart';
+import '../models/detection.dart';
 import '../models/weighted_item.dart';
 import '../services/depth_visualizer.dart';
 import '../state/scan_controller.dart';
@@ -30,14 +31,17 @@ class ResultScreen extends StatelessWidget {
             title: const Text('Detected ingredients'),
             actions: [
               if (canGetRecipes)
-                TextButton.icon(
-                  icon: const Icon(Icons.restaurant_menu),
-                  label: const Text('Get recipes'),
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => RecipeScreen(
-                        ingredientWeights: Map.unmodifiable(
-                          result.ingredientWeights,
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: FilledButton.icon(
+                    icon: const Icon(Icons.restaurant_menu),
+                    label: const Text('Get recipes'),
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => RecipeScreen(
+                          ingredientWeights: Map.unmodifiable(
+                            result.ingredientWeights,
+                          ),
                         ),
                       ),
                     ),
@@ -590,13 +594,20 @@ class _ItemTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final det = item.detection;
     return ExpansionTile(
-      leading: det.isManual ? const Icon(Icons.edit) : const Icon(Icons.label),
+      leading: Icon(_sourceIcon(det)),
       title: Text(det.className),
-      subtitle: Text('${item.weightG.round()} g'),
+      subtitle: Text('${item.weightG.round()} g · ${_sourceLabel(det)}'),
       childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       children: [
         _detail('Shape', item.shape.name),
-        _detail('Confidence', '${(det.confidence * 100).round()} %'),
+        if (det.isRelabeled && det.source != null)
+          _detail(
+            'Model label',
+            '${det.source!.className} '
+                '(${(det.source!.confidence * 100).round()} %)',
+          )
+        else if (det.origin == DetectionOrigin.model)
+          _detail('Model confidence', '${(det.confidence * 100).round()} %'),
         _detail('Depth', '${(item.depthM * 100).toStringAsFixed(1)} cm'),
         _detail(
           'Size',
@@ -604,9 +615,28 @@ class _ItemTile extends StatelessWidget {
               '${(item.realHeightM * 100).toStringAsFixed(1)} cm',
         ),
         _detail('Density', '${item.densityKgM3.round()} kg/m³'),
-        if (det.isManual) _detail('Source', 'manually added'),
+        if (det.origin == DetectionOrigin.smart)
+          _detail('Source', 'smart selection')
+        else if (det.origin == DetectionOrigin.manual)
+          _detail('Source', 'manual selection'),
       ],
     );
+  }
+
+  IconData _sourceIcon(Detection det) {
+    if (det.isRelabeled) return Icons.edit;
+    return switch (det.origin) {
+      DetectionOrigin.model => Icons.center_focus_strong,
+      DetectionOrigin.smart || DetectionOrigin.manual => Icons.add_circle,
+    };
+  }
+
+  String _sourceLabel(Detection det) {
+    if (det.isRelabeled) return 'YOLO edited';
+    return switch (det.origin) {
+      DetectionOrigin.model => 'YOLO detected',
+      DetectionOrigin.smart || DetectionOrigin.manual => 'New ingredient',
+    };
   }
 
   Widget _detail(String label, String value) => Padding(
