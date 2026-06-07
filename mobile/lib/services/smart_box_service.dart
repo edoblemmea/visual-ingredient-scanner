@@ -13,15 +13,17 @@ import '../models/depth_map.dart';
 ///      the object's near surface, robust to a single noisy pixel or a closer
 ///      neighbour clipping the window (the strict minimum collapsed the box when
 ///      such a dip was present).
-///   2. Cast 72 rays outward, each stopping where depth rises past
-///      `ref + max(2 cm, 10 %·ref)` (the object→surface step, adaptive to
-///      distance), tolerating a 2-pixel noise run.
-///   3. Radius = the **median** ray reach. Leaks are *directional* — when the
-///      item rests against an adjacent same-depth surface a whole contiguous arc
-///      of rays runs away — so a per-side percentile fails (an entire side can
-///      leak) but the median rejects up to ~50 % runaway rays. The box is the
-///      square of that radius around the tap; the user drags it to fine-tune the
-///      aspect.
+///   2. Cast 72 rays outward; a ray stays on the object while depth tracks its
+///      running-minimum plateau, and ends at the first **depth jump** back to the
+///      surface behind it (a discontinuity, not a fixed band — so it follows an
+///      object whose own surface depth varies or sits on a slope), with an
+///      absolute-drift backstop. A short jump run is tolerated for noise.
+///   3. Radius = the **55th percentile** of the ray reaches. Leaks are
+///      *directional* — when the item rests against an adjacent same-depth
+///      surface a whole contiguous arc of rays runs away — so a per-side
+///      percentile fails (an entire side can leak) but a near-median rejects
+///      ~45 % runaway rays. The box is the square of that radius around the tap;
+///      the user drags it to fine-tune the aspect.
 ///
 /// On the sample images this lands within ~10 % of the detector's box for the
 /// isolated items (apple, oranges, lemon, garlic, bread); tight clusters (a pile
@@ -42,12 +44,20 @@ class SmartBoxService {
   /// doesn't drag the reference in front of the object.
   static const double _refPercentile = 0.20;
 
-  /// Depth step (fraction of the reference depth) marking the object→surface
-  /// edge.
-  static const double _stepFrac = 0.10;
+  /// A depth **jump** of more than this fraction of the object's plateau depth,
+  /// between adjacent samples along a ray, marks the object→surface edge. Keying
+  /// the edge to a *discontinuity* (rather than an absolute band off `ref`) makes
+  /// it robust to an object whose own surface depth varies or sits on a slope:
+  /// the ray follows the surface and stops only where depth actually steps back.
+  static const double _jumpFrac = 0.10;
 
-  /// Absolute floor for that step (m), for very-close (small-depth) objects.
-  static const double _stepFloorM = 0.02;
+  /// Absolute floor for that jump (m), for very-close (small-depth) objects.
+  static const double _jumpFloorM = 0.02;
+
+  /// Backstop: even without a single sharp jump, a ray stops once depth has
+  /// drifted this far past the reference — guards against a smooth ramp onto the
+  /// background with no clean step.
+  static const double _maxDriftFrac = 0.20;
 
   /// Hard cap on a ray's reach, as a fraction of the smaller image side.
   static const double _maxReachFrac = 0.40;
@@ -55,8 +65,14 @@ class SmartBoxService {
   /// Number of rays cast around the tap.
   static const int _rayCount = 72;
 
-  /// Consecutive over-threshold pixels a ray tolerates (noise) before stopping.
+  /// Consecutive jump pixels a ray tolerates (noise) before stopping.
   static const int _tolerateRun = 2;
+
+  /// Percentile of the ray reaches taken as the radius. Slightly above the
+  /// median — leaks are directional so the median is the floor of robustness,
+  /// and 55 % recovers the rounded-object rim the strict median clips, while
+  /// staying well below the point where a leaked arc would inflate the box.
+  static const double _reachPercentile = 0.55;
 
   /// Minimum half-extent (px) so a tap always yields a usable box.
   static const double _minHalfExtent = 6.0;
@@ -73,7 +89,6 @@ class SmartBoxService {
     final ref = _refDepth(depth, sx, sy);
     if (ref == null) return null;
 
-    final threshold = ref + math.max(_stepFloorM, ref * _stepFrac);
     final maxReach = math.min(w, h) * _maxReachFrac;
 
     final reaches = <double>[];
@@ -85,12 +100,13 @@ class SmartBoxService {
         sy,
         math.cos(angle),
         math.sin(angle),
-        threshold,
+        ref,
         maxReach,
       ));
     }
 
-    final radius = math.max(_minHalfExtent, _median(reaches));
+    final radius =
+        math.max(_minHalfExtent, _percentile(reaches, _reachPercentile));
     return BBox(cx - radius, cy - radius, cx + radius, cy + radius)
         .clampTo(w, h);
   }
@@ -118,18 +134,24 @@ class SmartBoxService {
     return vals[i];
   }
 
-  /// Distance (px) a ray travels from ([cx],[cy]) along ([dx],[dy]) before depth
-  /// exceeds [threshold] (the object→surface step) or it leaves the image / the
-  /// [maxReach] cap, tolerating a short run of noisy pixels.
+  /// Distance (px) a ray travels from ([cx],[cy]) along ([dx],[dy]) while it is
+  /// still on the object. The object plateau is the running minimum depth seen
+  /// along the ray (its surface can curve slightly nearer); the ray ends at the
+  /// first point where depth **jumps** above that plateau by [_jumpFrac] (a
+  /// discontinuity = the step back to the surface behind the object), or has
+  /// drifted [_maxDriftFrac] past [ref] with no clean step, or leaves the image
+  /// / hits [maxReach]. A short jump run is tolerated so a single noisy pixel
+  /// doesn't cut the ray short.
   static double _rayReach(
     DepthMap depth,
     int cx,
     int cy,
     double dx,
     double dy,
-    double threshold,
+    double ref,
     double maxReach,
   ) {
+    var plateau = ref;
     var over = 0;
     var lastGood = 0;
     final limit = maxReach.floor();
@@ -140,7 +162,15 @@ class SmartBoxService {
         return r.toDouble();
       }
       final d = depth.data[y * depth.width + x];
-      if (!d.isFinite || d > threshold) {
+      if (!d.isFinite) {
+        over++;
+        if (over > _tolerateRun) return lastGood.toDouble();
+        continue;
+      }
+      if (d < plateau) plateau = d;
+      final jumped = (d - plateau) > math.max(_jumpFloorM, plateau * _jumpFrac);
+      final drifted = (d - ref) > ref * _maxDriftFrac;
+      if (jumped || drifted) {
         over++;
         if (over > _tolerateRun) return lastGood.toDouble();
       } else {
@@ -151,13 +181,11 @@ class SmartBoxService {
     return maxReach;
   }
 
-  /// Median of [values] (not pre-sorted). Empty → 0.
-  static double _median(List<double> values) {
+  /// Value at fractional [p] of [values] (not pre-sorted). Empty → 0.
+  static double _percentile(List<double> values, double p) {
     if (values.isEmpty) return 0;
     final sorted = [...values]..sort();
-    final n = sorted.length;
-    return n.isOdd
-        ? sorted[n ~/ 2]
-        : (sorted[n ~/ 2 - 1] + sorted[n ~/ 2]) / 2.0;
+    final i = (p * (sorted.length - 1)).round().clamp(0, sorted.length - 1);
+    return sorted[i];
   }
 }

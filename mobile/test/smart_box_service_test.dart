@@ -85,11 +85,12 @@ void main() {
     expect(depth.medianIn(box), closeTo(0.4, 0.05));
   });
 
-  test('uses the median ray reach, so a leak on one side cannot inflate it', () {
+  test('a leak on one side cannot inflate the box (robust reach percentile)',
+      () {
     // Object [30,70)×[30,70) at 0.5 m on a 1.0 m background, but with a
     // same-depth "bridge" leaking off the right edge (no depth step there). The
-    // median radius must reject the leaked rays and size to the object (~20 px
-    // half-extent), not run away along the bridge.
+    // near-median reach percentile must reject the leaked rays and size to the
+    // object (~20 px half-extent), not run away along the bridge.
     final depth = _scene(160, 100,
         far: 1.0, near: 0.5, x1: 30, y1: 30, x2: 70, y2: 70);
     for (var y = 45; y < 55; y++) {
@@ -133,5 +134,26 @@ void main() {
 
     final box = SmartBoxService.boxAround(depth, 20, 30)!;
     expect(box.x2, lessThan(50)); // stays on the left object
+  });
+
+  test('follows an object on a depth gradient and stops at the jump', () {
+    // An object [40,80)×[40,80) whose own depth ramps from 0.50 to 0.62 across
+    // its width (a slanted item), sitting on a far 1.2 m surface. A fixed band
+    // off the near reference would stop partway up the ramp; the jump detector
+    // tracks the gradual surface and stops only at the sharp step to 1.2 m.
+    final w = 120, h = 120;
+    final data = Float32List(w * h)..fillRange(0, w * h, 1.2);
+    for (var y = 40; y < 80; y++) {
+      for (var x = 40; x < 80; x++) {
+        data[y * w + x] = 0.50 + 0.12 * (x - 40) / 40; // ramps across the object
+      }
+    }
+    final depth = DepthMap(width: w, height: h, data: data);
+
+    final box = SmartBoxService.boxAround(depth, 60, 60)!;
+    // The rightward edge should reach near the true object edge (x≈80), well
+    // past where a 20%-of-ref band (0.50→0.60) would have cut it (~x67).
+    expect(box.x2, greaterThan(74));
+    expect(box.x2, lessThan(92)); // but not past the object into the surface
   });
 }

@@ -398,15 +398,18 @@ toggled by an app-bar **Smart** switch:
   CLAUDE.md). Algorithm, tuned and validated against the real Metric3D depth of all three sample
   images: (1) reference depth = the **20th percentile** of an 8 px window at the tap (the object's near
   surface; a robust low percentile, not the strict minimum, which collapsed the box whenever a closer
-  neighbour or a noisy pixel clipped the window); (2) cast 72 rays, each stopping where depth rises past
-  `ref + max(2 cm, 10 %·ref)` (the object→surface step, adaptive to distance), tolerating a 2 px noise
-  run; (3) **radius = the median ray reach.** Leaks are *directional* — when an item rests against an
-  adjacent same-depth surface a whole contiguous arc of rays runs away — so a per-side percentile fails
-  (an entire side can leak) but the median rejects up to ~50 % runaway rays. The box is the square of
-  that radius (the user drags to fine-tune aspect). On the samples this lands within ~10 % of the
-  detector box for the isolated items (apple, oranges, lemon, garlic, bread); tight clusters (a pile of
-  figs) size to a single item. *(Earlier attempts — a 4-ray walk, then a similar-depth flood fill, then
-  a per-side-percentile radial scan — all over-grew on top-down fridge shots where ~20 % of the frame
+  neighbour or a noisy pixel clipped the window); (2) cast 72 rays — a ray stays on the object while
+  depth tracks its running-minimum **plateau** and ends at the first **depth jump** back to the surface
+  behind it (`>max(2 cm, 10 %·plateau)` between adjacent samples), with an absolute-drift backstop and a
+  2 px noise tolerance. Keying the edge to a *discontinuity* rather than a fixed band off `ref` lets a
+  ray follow an object whose own surface depth varies or sits on a slope, and stop exactly at the step;
+  (3) **radius = the 55th percentile of the ray reaches.** Leaks are *directional* — when an item rests
+  against an adjacent same-depth surface a whole contiguous arc of rays runs away — so a per-side
+  percentile fails (an entire side can leak) but a near-median rejects ~45 % runaway rays. The box is
+  the square of that radius (the user drags to fine-tune aspect). On the samples this lands within ~3 %
+  of the detector box on average (mean size-ratio 0.97 excluding the one tight fig cluster, which sizes
+  to a single fig). *(Earlier attempts — a 4-ray walk, then a similar-depth flood fill, then a
+  per-side-percentile radial scan — all over-grew on top-down fridge shots where ~20 % of the frame
   shares the object's depth.)* Manual mode (below) covers the hard flat/edge cases. Shape/weight then
   come from the existing pipeline.
 - **Manual:** drag a rectangle by hand (smart selection disabled).
