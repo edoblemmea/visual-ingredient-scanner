@@ -116,8 +116,8 @@ class _DistanceCorrection extends StatefulWidget {
 }
 
 class _DistanceCorrectionState extends State<_DistanceCorrection> {
-  static const double _min = 0.05;
-  static const double _max = 2.0;
+  static const double _min = 0.10;
+  static const double _max = 1.20;
 
   int _selected = 0;
   late double _distanceM = _clampedDepth(widget.items[_selected]);
@@ -166,7 +166,7 @@ class _DistanceCorrectionState extends State<_DistanceCorrection> {
                 value: _distanceM.clamp(_min, _max),
                 min: _min,
                 max: _max,
-                divisions: ((_max - _min) / 0.05).round(),
+                divisions: ((_max - _min) / 0.01).round(),
                 label: '${(_distanceM * 100).round()} cm',
                 onChanged: (v) => setState(() => _distanceM = v),
                 onChangeEnd: (v) => widget.controller
