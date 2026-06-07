@@ -27,9 +27,12 @@ class AnnotateScreen extends StatefulWidget {
 class _AnnotateScreenState extends State<AnnotateScreen> {
   bool _smart = true;
 
-  // In-progress manual drag, in original-image pixel coordinates.
+  // In-progress manual rectangle drag, in original-image pixel coordinates.
   Offset? _dragStart;
   Offset? _dragCurrent;
+
+  // In-progress smart-mode lasso loop, in original-image pixel coordinates.
+  final List<Offset> _loop = [];
 
   @override
   Widget build(BuildContext context) {
@@ -58,6 +61,7 @@ class _AnnotateScreenState extends State<AnnotateScreen> {
                   _smart = v;
                   _dragStart = null;
                   _dragCurrent = null;
+                  _loop.clear();
                 }),
               ),
             ],
@@ -70,7 +74,8 @@ class _AnnotateScreenState extends State<AnnotateScreen> {
             padding: const EdgeInsets.all(12),
             child: Text(
               _smart
-                  ? 'Tap the centre of a missed item — the box is sized from depth.'
+                  ? 'Circle a missed item — the box snaps to it using depth. '
+                      'Tap an existing box to edit it.'
                   : 'Drag to draw a box around a missed item.',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
@@ -100,19 +105,26 @@ class _AnnotateScreenState extends State<AnnotateScreen> {
                                 sx,
                                 sy,
                               ),
-                      onPanStart: _smart
-                          ? null
-                          : (d) => setState(() {
-                                _dragStart = toImage(d.localPosition);
-                                _dragCurrent = _dragStart;
-                              }),
-                      onPanUpdate: _smart
-                          ? null
-                          : (d) => setState(
-                              () => _dragCurrent = toImage(d.localPosition)),
-                      onPanEnd: _smart
-                          ? null
-                          : (_) => _onManualDrawn(context, controller),
+                      onPanStart: (d) => setState(() {
+                        if (_smart) {
+                          _loop
+                            ..clear()
+                            ..add(toImage(d.localPosition));
+                        } else {
+                          _dragStart = toImage(d.localPosition);
+                          _dragCurrent = _dragStart;
+                        }
+                      }),
+                      onPanUpdate: (d) => setState(() {
+                        if (_smart) {
+                          _loop.add(toImage(d.localPosition));
+                        } else {
+                          _dragCurrent = toImage(d.localPosition);
+                        }
+                      }),
+                      onPanEnd: (_) => _smart
+                          ? _onLoopDrawn(context, controller)
+                          : _onManualDrawn(context, controller),
                       child: Stack(
                         fit: StackFit.expand,
                         children: [
@@ -121,6 +133,7 @@ class _AnnotateScreenState extends State<AnnotateScreen> {
                             painter: _AnnotatePainter(
                               detections: controller.effectiveDetections,
                               draft: _draftBox(),
+                              loop: List.unmodifiable(_loop),
                               imageWidth: imgW,
                               imageHeight: imgH,
                             ),
@@ -155,15 +168,21 @@ class _AnnotateScreenState extends State<AnnotateScreen> {
     ScanController controller,
     Offset p,
   ) async {
-    // A tap on an existing box edits it instead of stacking a new one.
+    // In smart mode a tap edits an existing box; new items are circled (drag).
     final hit = _hitTest(controller, p);
-    if (hit != null) {
-      await _editExisting(context, controller, hit);
-      return;
-    }
-    final box = controller.smartBoxAt(p.dx, p.dy);
-    if (box == null) {
-      _toast(context, 'No depth at that point — try the centre of the object.');
+    if (hit != null) await _editExisting(context, controller, hit);
+  }
+
+  Future<void> _onLoopDrawn(
+    BuildContext context,
+    ScanController controller,
+  ) async {
+    final loop = _loop.map((o) => (o.dx, o.dy)).toList();
+    setState(() => _loop.clear());
+    if (loop.length < 3) return; // a tap, not a circle — handled by onTapUp
+    final box = controller.boxFromLoop(loop);
+    if (box == null || box.width < 6 || box.height < 6) {
+      _toast(context, 'Circle a bit larger around the item.');
       return;
     }
     await _pickClassAndAdd(context, controller, box);
@@ -339,12 +358,14 @@ class _AnnotatePainter extends CustomPainter {
   _AnnotatePainter({
     required this.detections,
     required this.draft,
+    required this.loop,
     required this.imageWidth,
     required this.imageHeight,
   });
 
   final List<Detection> detections;
   final BBox? draft;
+  final List<Offset> loop; // in-progress smart-mode lasso (image px)
   final int imageWidth;
   final int imageHeight;
 
@@ -390,12 +411,21 @@ class _AnnotatePainter extends CustomPainter {
       );
       canvas.drawRect(r, stroke..color = Colors.lightBlueAccent);
     }
+
+    if (loop.length > 1) {
+      final path = Path()..moveTo(loop.first.dx * sx, loop.first.dy * sy);
+      for (final p in loop.skip(1)) {
+        path.lineTo(p.dx * sx, p.dy * sy);
+      }
+      canvas.drawPath(path, stroke..color = Colors.lightBlueAccent);
+    }
   }
 
   @override
   bool shouldRepaint(_AnnotatePainter old) =>
       old.detections != detections ||
       old.draft != draft ||
+      old.loop != loop ||
       old.imageWidth != imageWidth ||
       old.imageHeight != imageHeight;
 }

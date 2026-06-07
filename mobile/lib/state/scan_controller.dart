@@ -204,6 +204,15 @@ class ScanController extends ChangeNotifier {
     return SmartBoxService.boxAround(depth, cx, cy);
   }
 
+  /// S16 — circled box: the user encircled an item; the box is the bounds of the
+  /// drawn loop, trimmed inward to the near-depth pixels (px in original-image
+  /// space). Null if there is no scan or the loop is degenerate.
+  BBox? boxFromLoop(List<(double, double)> loop) {
+    final depth = _depthMap;
+    if (depth == null) return null;
+    return SmartBoxService.boxFromLoop(depth, loop);
+  }
+
   /// Original capture dimensions (px) the bbox coordinates live in.
   int get imageWidth => _depthMap?.width ?? 0;
   int get imageHeight => _depthMap?.height ?? 0;

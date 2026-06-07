@@ -3,9 +3,16 @@ import 'dart:math' as math;
 import '../models/bbox.dart';
 import '../models/depth_map.dart';
 
-/// Smart manual-annotation helper (S16, FR7): from a single tap on the centre of
-/// an object, estimate its bounding box from the depth map alone — no size
-/// priors.
+/// Smart manual-annotation helper (S16, FR7). Two entry points, both depth-based
+/// and free of size priors:
+///   • [boxFromLoop] — the user **circles** an item; the box is the bounds of
+///     the drawn loop (a direct, reliable extent), trimmed inward to the
+///     near-depth pixels. This is the primary smart-mode gesture.
+///   • [boxAround] — from a single **tap**, infer the box from depth alone (used
+///     by callers that only have a point). Less reliable than a circle because
+///     the extent is guessed rather than supplied.
+///
+/// [boxAround] details:
 ///
 /// **Approach (validated against the real Metric3D depth of the three sample
 /// images).** The item pokes toward the camera, so:
@@ -109,6 +116,104 @@ class SmartBoxService {
         math.max(_minHalfExtent, _percentile(reaches, _reachPercentile));
     return BBox(cx - radius, cy - radius, cx + radius, cy + radius)
         .clampTo(w, h);
+  }
+
+  /// Fraction of pixels inside the loop that must be farther than the trim
+  /// threshold before the box is trimmed inward at all — so a tight loop that is
+  /// all object is left exactly as drawn.
+  static const double _minBackgroundFracToTrim = 0.10;
+
+  /// Depth (fraction over the loop's near reference) past which a pixel inside
+  /// the loop is considered background to be trimmed away.
+  static const double _trimDepthFrac = 0.15;
+
+  /// Percentile of the in-loop depths taken as the near (object) reference.
+  /// Lower than the tap path's: a loose circle can be mostly background, so a
+  /// higher percentile would pick the surface instead of the encircled item.
+  static const double _loopRefPercentile = 0.10;
+
+  /// Box from a **circled** region (FR7): the user loosely encircles an item and
+  /// the box is the bounds of what they drew — a direct, reliable signal, no
+  /// depth guessing for the extent. Depth is used only to **trim inward**: if a
+  /// meaningful share of the loop is clearly-farther background, the box shrinks
+  /// to the near-depth (object) pixels inside the loop. It never expands past the
+  /// drawn loop, so the result can only be tighter than what was circled.
+  ///
+  /// [points] are in original-image pixels. Returns null for a degenerate loop.
+  static BBox? boxFromLoop(DepthMap depth, List<(double, double)> points) {
+    if (points.length < 3) return null;
+    final w = depth.width;
+    final h = depth.height;
+
+    var minX = double.infinity, minY = double.infinity;
+    var maxX = -double.infinity, maxY = -double.infinity;
+    for (final (px, py) in points) {
+      if (px < minX) minX = px;
+      if (py < minY) minY = py;
+      if (px > maxX) maxX = px;
+      if (py > maxY) maxY = py;
+    }
+    final loopBox = BBox(minX, minY, maxX, maxY).clampTo(w, h);
+    if (loopBox.width < 2 * _minHalfExtent ||
+        loopBox.height < 2 * _minHalfExtent) {
+      return loopBox; // too small to refine — take it as drawn
+    }
+
+    // Near-surface reference: 20th percentile of valid depths inside the loop.
+    final ix0 = loopBox.x1.floor().clamp(0, w - 1);
+    final iy0 = loopBox.y1.floor().clamp(0, h - 1);
+    final ix1 = loopBox.x2.ceil().clamp(0, w - 1);
+    final iy1 = loopBox.y2.ceil().clamp(0, h - 1);
+
+    final inside = <double>[];
+    for (var y = iy0; y <= iy1; y++) {
+      for (var x = ix0; x <= ix1; x++) {
+        if (!_pointInPolygon(x.toDouble(), y.toDouble(), points)) continue;
+        final d = depth.data[y * w + x];
+        if (d.isFinite && d > 0) inside.add(d);
+      }
+    }
+    if (inside.isEmpty) return loopBox;
+    inside.sort();
+    final ref = inside[(_loopRefPercentile * (inside.length - 1)).round()];
+    final trimAt = ref * (1 + _trimDepthFrac);
+
+    final background = inside.where((d) => d > trimAt).length;
+    if (background / inside.length < _minBackgroundFracToTrim) {
+      return loopBox; // loop is essentially all object — keep it as drawn
+    }
+
+    // Trim to the near-depth (object) pixels inside the loop.
+    var tx0 = double.infinity, ty0 = double.infinity;
+    var tx1 = -double.infinity, ty1 = -double.infinity;
+    for (var y = iy0; y <= iy1; y++) {
+      for (var x = ix0; x <= ix1; x++) {
+        final d = depth.data[y * w + x];
+        if (!d.isFinite || d <= 0 || d > trimAt) continue;
+        if (!_pointInPolygon(x.toDouble(), y.toDouble(), points)) continue;
+        if (x < tx0) tx0 = x.toDouble();
+        if (y < ty0) ty0 = y.toDouble();
+        if (x > tx1) tx1 = x.toDouble();
+        if (y > ty1) ty1 = y.toDouble();
+      }
+    }
+    if (tx1 < tx0 || ty1 < ty0) return loopBox;
+    return BBox(tx0, ty0, tx1 + 1, ty1 + 1).clampTo(w, h);
+  }
+
+  /// Ray-casting point-in-polygon test (the loop is treated as closed).
+  static bool _pointInPolygon(double x, double y, List<(double, double)> poly) {
+    var inside = false;
+    final n = poly.length;
+    for (var i = 0, j = n - 1; i < n; j = i++) {
+      final (xi, yi) = poly[i];
+      final (xj, yj) = poly[j];
+      if (((yi > y) != (yj > y)) &&
+          (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) {
+        inside = !inside;
+      }
+    }
+    return inside;
   }
 
   /// Near-surface reference depth: the [_refPercentile] of valid depths in a

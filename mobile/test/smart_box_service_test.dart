@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -155,5 +156,54 @@ void main() {
     // past where a 20%-of-ref band (0.50→0.60) would have cut it (~x67).
     expect(box.x2, greaterThan(74));
     expect(box.x2, lessThan(92)); // but not past the object into the surface
+  });
+
+  // ── Circle / lasso mode ───────────────────────────────────────────────────
+
+  List<(double, double)> circle(double cx, double cy, double r, {int n = 32}) {
+    return [
+      for (var i = 0; i < n; i++)
+        (cx + r * math.cos(2 * math.pi * i / n),
+            cy + r * math.sin(2 * math.pi * i / n)),
+    ];
+  }
+
+  test('loop box trims a loose circle inward to the object depth', () {
+    // Object [40,60)×[40,60) on a far background; circle it loosely (r=28, well
+    // past the object). The depth trim should pull the box back to the object,
+    // not keep the whole loose circle.
+    final depth = _scene(100, 100,
+        far: 1.0, near: 0.4, x1: 40, y1: 40, x2: 60, y2: 60);
+    final box = SmartBoxService.boxFromLoop(depth, circle(50, 50, 28))!;
+
+    expect(box.width, closeTo(20, 6)); // ~the object, not the 56-wide circle
+    expect(box.height, closeTo(20, 6));
+  });
+
+  test('loop box keeps a tight all-object circle as drawn', () {
+    // Circle entirely within a large object: no background inside, so the box is
+    // the drawn bounds (nothing to trim).
+    final depth = _scene(120, 120,
+        far: 1.0, near: 0.4, x1: 20, y1: 20, x2: 100, y2: 100);
+    final box = SmartBoxService.boxFromLoop(depth, circle(60, 60, 25))!;
+
+    // Bounds of a 25-radius circle ≈ 50 px across.
+    expect(box.width, closeTo(50, 4));
+    expect(box.height, closeTo(50, 4));
+  });
+
+  test('loop box never expands past the drawn loop', () {
+    final depth = _scene(100, 100,
+        far: 1.0, near: 0.4, x1: 30, y1: 30, x2: 70, y2: 70);
+    final loop = circle(50, 50, 18);
+    final box = SmartBoxService.boxFromLoop(depth, loop)!;
+    expect(box.x1, greaterThanOrEqualTo(50 - 18 - 1));
+    expect(box.x2, lessThanOrEqualTo(50 + 18 + 1));
+  });
+
+  test('loop box returns null for a degenerate loop', () {
+    final depth = _scene(40, 40,
+        far: 1.0, near: 0.4, x1: 10, y1: 10, x2: 20, y2: 20);
+    expect(SmartBoxService.boxFromLoop(depth, [(5, 5), (6, 6)]), isNull);
   });
 }

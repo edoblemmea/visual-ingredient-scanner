@@ -393,9 +393,15 @@ reads the set distance after correction. `flutter analyze` clean, 60 tests pass.
 New [AnnotateScreen](../mobile/lib/screens/annotate_screen.dart), reached via an "Edit items" button on
 the result screen, lets the user fix the detection set over the captured image. Two placement modes,
 toggled by an app-bar **Smart** switch:
-- **Smart (default):** tap the *centre* of a missed item; [SmartBoxService](../mobile/lib/services/smart_box_service.dart)
+- **Smart (default):** **circle** a missed item (drag a loop); the box is the bounds of what was drawn,
+  trimmed inward to the encircled item's near-depth pixels via
+  [SmartBoxService.boxFromLoop](../mobile/lib/services/smart_box_service.dart) — the user supplies the
+  extent directly (far more reliable than guessing from one point) and depth only shrinks the box to the
+  object, never expands past the loop. On the samples a loose 1.4× circle yields a box ~1.1–1.4× the
+  detector box; a tight all-object circle is kept as drawn. Tapping an existing box still edits it.
+  A tap-only `boxAround` that infers the extent from depth is kept for callers without a loop; it
   estimates the box from the depth map — a data-driven box, **no size priors** (consistent with
-  CLAUDE.md). Algorithm, tuned and validated against the real Metric3D depth of all three sample
+  CLAUDE.md). `boxAround` algorithm, tuned and validated against the real Metric3D depth of all three sample
   images: (1) reference depth = the **20th percentile** of an 8 px window at the tap (the object's near
   surface; a robust low percentile, not the strict minimum, which collapsed the box whenever a closer
   neighbour or a noisy pixel clipped the window); (2) cast 72 rays — a ray stays on the object while
