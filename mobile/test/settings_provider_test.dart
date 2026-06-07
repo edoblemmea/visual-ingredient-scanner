@@ -31,6 +31,7 @@ void main() {
     expect(provider.modelChoice.depthId, 'metric3d');
     expect(provider.settings.showBoxes, isTrue);
     expect(provider.settings.showDepthMap, isFalse);
+    expect(provider.settings.showSampleImages, isFalse);
   });
 
   test(
@@ -44,6 +45,7 @@ void main() {
       await first.setConfidenceThreshold(0.3);
       await first.setDensityOverride('tomato', 950);
       await first.setShowBoxes(true);
+      await first.setShowSampleImages(true);
       await first.setGeminiModel('gemini-3.1-pro');
       await first.setGeminiApiKey('secret');
 
@@ -55,6 +57,7 @@ void main() {
       expect(second.settings.confidenceThreshold, 0.3);
       expect(second.settings.densityOverrides['tomato'], 950);
       expect(second.settings.showBoxes, isTrue);
+      expect(second.settings.showSampleImages, isTrue);
       expect(second.settings.geminiModel, 'gemini-3.1-pro');
       expect(second.settings.geminiApiKey, 'secret'); // from secure storage
       expect(second.modelChoice.detectorId, 'v26m_e40');

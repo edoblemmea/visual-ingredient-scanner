@@ -50,6 +50,9 @@ class SettingsProvider extends ChangeNotifier {
   Future<void> setShowDepthMap(bool value) =>
       _update(_settings.copyWith(showDepthMap: value));
 
+  Future<void> setShowSampleImages(bool value) =>
+      _update(_settings.copyWith(showSampleImages: value));
+
   Future<void> setGeminiModel(String value) {
     final trimmed = value.trim();
     return _update(

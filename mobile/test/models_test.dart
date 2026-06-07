@@ -66,6 +66,7 @@ void main() {
         confidenceThreshold: 0.25,
         densityOverrides: {'tomato': 950},
         showBoxes: true,
+        showSampleImages: true,
         geminiModel: 'gemini-3.1-pro',
         geminiApiKey: 'secret',
       );
@@ -77,6 +78,7 @@ void main() {
       expect(restored.densityOverrides['tomato'], 950);
       expect(restored.showBoxes, isTrue);
       expect(restored.showDepthMap, isFalse);
+      expect(restored.showSampleImages, isTrue);
       expect(restored.geminiModel, 'gemini-3.1-pro');
       // The API key is deliberately excluded from the JSON blob (secure storage).
       expect(json.containsKey('geminiApiKey'), isFalse);
@@ -87,8 +89,10 @@ void main() {
       expect(AppSettings.defaults.geminiModel, 'gemini-3.1-flash-lite');
       expect(AppSettings.defaults.showBoxes, isTrue);
       expect(AppSettings.defaults.showDepthMap, isFalse);
+      expect(AppSettings.defaults.showSampleImages, isFalse);
       expect(AppSettings.fromJson(const {}).showBoxes, isTrue);
       expect(AppSettings.fromJson(const {}).showDepthMap, isFalse);
+      expect(AppSettings.fromJson(const {}).showSampleImages, isFalse);
       expect(
         AppSettings.fromJson(const {}).geminiModel,
         'gemini-3.1-flash-lite',

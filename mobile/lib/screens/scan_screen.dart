@@ -4,6 +4,8 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:image/image.dart' as img;
+import 'package:image_picker/image_picker.dart';
+import 'package:photo_manager/photo_manager.dart';
 import 'package:provider/provider.dart';
 
 import '../services/asset_catalog.dart';
@@ -22,13 +24,17 @@ class ScanScreen extends StatefulWidget {
 
 class _ScanScreenState extends State<ScanScreen> {
   CameraController? _camera;
+  final ImagePicker _imagePicker = ImagePicker();
+  List<AssetEntity> _galleryAssets = const [];
   String? _cameraError;
   bool _busy = false;
+  bool _loadingGallery = false;
 
   @override
   void initState() {
     super.initState();
     _initCamera();
+    _loadGalleryAssets();
   }
 
   Future<void> _initCamera() async {
@@ -70,7 +76,7 @@ class _ScanScreenState extends State<ScanScreen> {
     setState(() => _busy = true);
     try {
       final file = await camera.takePicture();
-      await _process(await file.readAsBytes());
+      await _confirmAndProcess(await file.readAsBytes());
     } catch (e) {
       _showError(e.toString());
     } finally {
@@ -83,12 +89,100 @@ class _ScanScreenState extends State<ScanScreen> {
     setState(() => _busy = true);
     try {
       final data = await rootBundle.load(asset);
-      await _process(data.buffer.asUint8List());
+      await _confirmAndProcess(data.buffer.asUint8List());
     } catch (e) {
       _showError(e.toString());
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  Future<void> _pickGallery() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      final file = await _imagePicker.pickImage(source: ImageSource.gallery);
+      if (file == null) return;
+      await _confirmAndProcess(await file.readAsBytes());
+    } catch (e) {
+      _showError(e.toString());
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _pickGalleryAsset(AssetEntity asset) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      final bytes = await asset.originBytes;
+      if (bytes == null) {
+        _showError('Could not read gallery photo');
+        return;
+      }
+      await _confirmAndProcess(bytes);
+    } catch (e) {
+      _showError(e.toString());
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _loadGalleryAssets() async {
+    if (_loadingGallery) return;
+    setState(() => _loadingGallery = true);
+    try {
+      const requestOption = PermissionRequestOption(
+        androidPermission: AndroidPermission(
+          type: RequestType.image,
+          mediaLocation: false,
+        ),
+      );
+      final permission = await PhotoManager.requestPermissionExtend(
+        requestOption: requestOption,
+      );
+      if (!permission.hasAccess) return;
+      final albums = await PhotoManager.getAssetPathList(
+        onlyAll: true,
+        type: RequestType.image,
+      );
+      if (albums.isEmpty) return;
+      final assets = await albums.first.getAssetListPaged(page: 0, size: 24);
+      if (mounted) setState(() => _galleryAssets = assets);
+    } catch (e) {
+      _showError(e.toString());
+    } finally {
+      if (mounted) setState(() => _loadingGallery = false);
+    }
+  }
+
+  Future<void> _confirmAndProcess(Uint8List bytes) async {
+    if (!mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Use this photo?'),
+        contentPadding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 420),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.memory(bytes, fit: BoxFit.contain),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Retake'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Analyze'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) await _process(bytes);
   }
 
   Future<void> _process(Uint8List bytes) async {
@@ -162,7 +256,7 @@ class _ScanScreenState extends State<ScanScreen> {
             Text(
               _cameraError == null
                   ? 'Starting camera…'
-                  : 'Camera unavailable.\nPick a sample image below.',
+                  : 'Camera unavailable.\nPick a photo below.',
               textAlign: TextAlign.center,
             ),
             if (_cameraError != null) ...[
@@ -196,6 +290,14 @@ class _ScanScreenState extends State<ScanScreen> {
   }
 
   Widget _sampleStrip() {
+    final showSamples = context
+        .watch<SettingsProvider>()
+        .settings
+        .showSampleImages;
+    final itemCount =
+        1 +
+        _galleryAssets.length +
+        (showSamples ? kSampleImageAssets.length : 0);
     return SafeArea(
       top: false,
       child: Container(
@@ -205,27 +307,126 @@ class _ScanScreenState extends State<ScanScreen> {
           children: [
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 8),
-              child: Text('Samples'),
+              child: Text('Photos'),
             ),
             Expanded(
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                itemCount: kSampleImageAssets.length,
+                itemCount: itemCount,
                 separatorBuilder: (_, _) => const SizedBox(width: 8),
                 itemBuilder: (context, i) {
-                  final asset = kSampleImageAssets[i];
-                  return GestureDetector(
-                    onTap: _busy ? null : () => _pickSample(asset),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.asset(asset, width: 80, fit: BoxFit.cover),
-                    ),
+                  if (i == 0) {
+                    return _GalleryTile(disabled: _busy, onTap: _pickGallery);
+                  }
+                  final galleryIndex = i - 1;
+                  if (galleryIndex < _galleryAssets.length) {
+                    final asset = _galleryAssets[galleryIndex];
+                    return _GalleryAssetTile(
+                      asset: asset,
+                      disabled: _busy,
+                      onTap: () => _pickGalleryAsset(asset),
+                    );
+                  }
+                  final sampleIndex = galleryIndex - _galleryAssets.length;
+                  final asset = kSampleImageAssets[sampleIndex];
+                  return _SampleTile(
+                    asset: asset,
+                    disabled: _busy,
+                    onTap: () => _pickSample(asset),
                   );
                 },
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _GalleryAssetTile extends StatelessWidget {
+  const _GalleryAssetTile({
+    required this.asset,
+    required this.disabled,
+    required this.onTap,
+  });
+
+  final AssetEntity asset;
+  final bool disabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: disabled ? null : onTap,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: FutureBuilder<Uint8List?>(
+          future: asset.thumbnailDataWithSize(const ThumbnailSize.square(160)),
+          builder: (context, snapshot) {
+            final data = snapshot.data;
+            if (data != null) {
+              return Image.memory(data, width: 80, fit: BoxFit.cover);
+            }
+            return Container(
+              width: 80,
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              child: const Center(child: Icon(Icons.image_outlined)),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _GalleryTile extends StatelessWidget {
+  const _GalleryTile({required this.disabled, required this.onTap});
+
+  final bool disabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: disabled ? null : onTap,
+      child: Container(
+        width: 80,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Theme.of(context).colorScheme.outline),
+        ),
+        child: const Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.photo_library_outlined),
+            SizedBox(height: 4),
+            Text('Gallery'),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SampleTile extends StatelessWidget {
+  const _SampleTile({
+    required this.asset,
+    required this.disabled,
+    required this.onTap,
+  });
+
+  final String asset;
+  final bool disabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: disabled ? null : onTap,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.asset(asset, width: 80, fit: BoxFit.cover),
       ),
     );
   }

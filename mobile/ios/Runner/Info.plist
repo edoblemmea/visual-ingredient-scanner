@@ -4,6 +4,8 @@
 <dict>
 	<key>NSCameraUsageDescription</key>
 	<string>The camera is used to scan ingredients on your counter or fridge.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>The photo library is used to choose ingredient photos to scan.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>

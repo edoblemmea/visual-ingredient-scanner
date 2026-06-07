@@ -24,6 +24,7 @@ class AppSettings {
     this.densityOverrides = const {},
     this.showBoxes = true,
     this.showDepthMap = false,
+    this.showSampleImages = false,
     this.geminiModel = kDefaultGeminiModel,
     this.geminiApiKey = '',
   });
@@ -38,6 +39,7 @@ class AppSettings {
 
   final bool showBoxes;
   final bool showDepthMap;
+  final bool showSampleImages;
 
   /// Gemini model used for recipe generation.
   final String geminiModel;
@@ -63,6 +65,7 @@ class AppSettings {
     Map<String, double>? densityOverrides,
     bool? showBoxes,
     bool? showDepthMap,
+    bool? showSampleImages,
     String? geminiModel,
     String? geminiApiKey,
   }) => AppSettings(
@@ -72,6 +75,7 @@ class AppSettings {
     densityOverrides: densityOverrides ?? this.densityOverrides,
     showBoxes: showBoxes ?? this.showBoxes,
     showDepthMap: showDepthMap ?? this.showDepthMap,
+    showSampleImages: showSampleImages ?? this.showSampleImages,
     geminiModel: geminiModel ?? this.geminiModel,
     geminiApiKey: geminiApiKey ?? this.geminiApiKey,
   );
@@ -84,6 +88,7 @@ class AppSettings {
     'densityOverrides': densityOverrides,
     'showBoxes': showBoxes,
     'showDepthMap': showDepthMap,
+    'showSampleImages': showSampleImages,
     'geminiModel': geminiModel,
   };
 
@@ -99,6 +104,7 @@ class AppSettings {
         const {},
     showBoxes: json['showBoxes'] as bool? ?? true,
     showDepthMap: json['showDepthMap'] as bool? ?? false,
+    showSampleImages: json['showSampleImages'] as bool? ?? false,
     geminiModel: _geminiModelFromJson(json['geminiModel']),
   );
 }
