@@ -395,17 +395,20 @@ the result screen, lets the user fix the detection set over the captured image. 
 toggled by an app-bar **Smart** switch:
 - **Smart (default):** tap the *centre* of a missed item; [SmartBoxService](../mobile/lib/services/smart_box_service.dart)
   estimates the box from the depth map — a data-driven box, **no size priors** (consistent with
-  CLAUDE.md). It takes the **local depth minimum** at the tap as the object's near-point reference,
-  casts 72 rays outward each stopping where depth rises past `ref + max(1.5 cm, 10 %·ref)` (the
-  object→surface step, adaptive to distance), and keeps the **75th-percentile** extent per side
-  (left/right/up/down) so a few rays escaping along a same-depth seam don't inflate the box while the
-  aspect still adapts per object. Validated on the real test_image3 Metric3D depth: smart boxes land
-  within ~1 cm of the detector's boxes for oranges, lemon and garlic. *(Earlier attempts — a 4-ray
-  walk, then a similar-depth flood fill — both failed on top-down fridge shots where ~20 % of the frame
-  shares the object's depth, so they leaked across the surface and returned huge boxes. The radial
-  near-point method keys on the object poking toward the camera, which actually separates it from the
-  surface.)* Manual mode (below) covers the hard flat-object cases. Shape/weight then come from the
-  existing pipeline.
+  CLAUDE.md). Algorithm, tuned and validated against the real Metric3D depth of all three sample
+  images: (1) reference depth = the **20th percentile** of an 8 px window at the tap (the object's near
+  surface; a robust low percentile, not the strict minimum, which collapsed the box whenever a closer
+  neighbour or a noisy pixel clipped the window); (2) cast 72 rays, each stopping where depth rises past
+  `ref + max(2 cm, 10 %·ref)` (the object→surface step, adaptive to distance), tolerating a 2 px noise
+  run; (3) **radius = the median ray reach.** Leaks are *directional* — when an item rests against an
+  adjacent same-depth surface a whole contiguous arc of rays runs away — so a per-side percentile fails
+  (an entire side can leak) but the median rejects up to ~50 % runaway rays. The box is the square of
+  that radius (the user drags to fine-tune aspect). On the samples this lands within ~10 % of the
+  detector box for the isolated items (apple, oranges, lemon, garlic, bread); tight clusters (a pile of
+  figs) size to a single item. *(Earlier attempts — a 4-ray walk, then a similar-depth flood fill, then
+  a per-side-percentile radial scan — all over-grew on top-down fridge shots where ~20 % of the frame
+  shares the object's depth.)* Manual mode (below) covers the hard flat/edge cases. Shape/weight then
+  come from the existing pipeline.
 - **Manual:** drag a rectangle by hand (smart selection disabled).
 Both open a searchable class picker (all 91 density-table classes) → `addManualDetection`. Tapping an
 existing box (detected *or* manual) offers **Change label** (`relabelDetection`) or **Remove**

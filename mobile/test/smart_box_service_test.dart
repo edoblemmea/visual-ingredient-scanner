@@ -27,18 +27,18 @@ DepthMap _scene(
 }
 
 void main() {
-  test('grows a box to the object extent and stops at the depth edge', () {
-    // 0.4 m object on a 1.0 m background, occupying [40,60)×[40,60).
+  test('sizes the box to the object extent and stops at the depth edge', () {
+    // 0.4 m object on a 1.0 m background, occupying [30,70)×[30,70) (half-extent
+    // 20 from the centre). The median ray radius lands between the axis
+    // half-extent (20) and the diagonal corner (~28), so the box brackets it.
     final depth = _scene(100, 100,
-        far: 1.0, near: 0.4, x1: 40, y1: 40, x2: 60, y2: 60);
+        far: 1.0, near: 0.4, x1: 30, y1: 30, x2: 70, y2: 70);
 
     final box = SmartBoxService.boxAround(depth, 50, 50)!;
 
-    // Should land close to the object square (centre 50, half-extent ~10).
-    expect(box.x1, closeTo(40, 2));
-    expect(box.y1, closeTo(40, 2));
-    expect(box.x2, closeTo(60, 2));
-    expect(box.y2, closeTo(60, 2));
+    final halfW = box.width / 2;
+    expect(halfW, greaterThan(18)); // reaches the object's axis edge
+    expect(halfW, lessThan(30)); // does not overshoot past the diagonal corner
   });
 
   test('returns null outside the depth map', () {
@@ -78,23 +78,29 @@ void main() {
     expect(box.y2, lessThanOrEqualTo(40));
   });
 
-  test('produces a box compatible with depth median sampling', () {
-    final depth = _scene(80, 80,
-        far: 1.0, near: 0.4, x1: 30, y1: 30, x2: 50, y2: 50);
-    final box = SmartBoxService.boxAround(depth, 40, 40) as BBox;
-    expect(depth.medianIn(box), closeTo(0.4, 0.01));
+  test('produces a box that samples the object depth, not the background', () {
+    final depth = _scene(120, 120,
+        far: 1.0, near: 0.4, x1: 40, y1: 40, x2: 80, y2: 80);
+    final box = SmartBoxService.boxAround(depth, 60, 60) as BBox;
+    expect(depth.medianIn(box), closeTo(0.4, 0.05));
   });
 
-  test('adapts the box aspect to a wide object', () {
-    // A wide object: 60 px across, 16 px tall. The per-side radial extents
-    // should make the box clearly wider than it is tall (an earlier 4-ray walk
-    // collapsed both axes into one square).
-    final depth = _scene(120, 80,
-        far: 1.2, near: 0.5, x1: 20, y1: 32, x2: 80, y2: 48);
-    final box = SmartBoxService.boxAround(depth, 50, 40)!;
+  test('uses the median ray reach, so a leak on one side cannot inflate it', () {
+    // Object [30,70)×[30,70) at 0.5 m on a 1.0 m background, but with a
+    // same-depth "bridge" leaking off the right edge (no depth step there). The
+    // median radius must reject the leaked rays and size to the object (~20 px
+    // half-extent), not run away along the bridge.
+    final depth = _scene(160, 100,
+        far: 1.0, near: 0.5, x1: 30, y1: 30, x2: 70, y2: 70);
+    for (var y = 45; y < 55; y++) {
+      for (var x = 70; x < 160; x++) {
+        depth.data[y * 160 + x] = 0.5; // same-depth bridge to the right edge
+      }
+    }
+    final box = SmartBoxService.boxAround(depth, 50, 50)!;
 
-    expect(box.width, greaterThan(box.height * 1.5)); // clearly wide
-    expect(box.height, lessThan(24)); // does not run past the short side
+    expect(box.width, closeTo(40, 14)); // sized to the object, not the bridge
+    expect(box.x2, lessThan(90)); // does not follow the bridge to the edge
   });
 
   test('a single noisy interior pixel does not truncate the box', () {
