@@ -40,6 +40,14 @@ class _RecipeScreenState extends State<RecipeScreen> {
   }
 
   Future<void> _generateOnce() async {
+    Future<void>.delayed(const Duration(milliseconds: 500)).then((_) {
+      if (_loading && mounted) {
+        setState(() {
+          _loadingPhase = 'Crafting recipes…';
+          _loadingProgress = 0.25;
+        });
+      }
+    });
     Future<void>.delayed(const Duration(seconds: 1)).then((_) {
       if (_loading && mounted) {
         setState(() {

@@ -144,6 +144,13 @@ class ScanController extends ChangeNotifier {
         Future<void>.delayed(const Duration(seconds: 2)).then((_) {
           if (status == ScanStatus.running) {
             scanPhase = 'Estimating depth…';
+            scanProgress = 0.6;
+            notifyListeners();
+          }
+        });
+        Future<void>.delayed(const Duration(seconds: 4)).then((_) {
+          if (status == ScanStatus.running) {
+            scanPhase = 'Estimating depth…';
             scanProgress = 0.75;
             notifyListeners();
           }
