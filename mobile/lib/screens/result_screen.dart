@@ -49,15 +49,9 @@ class ResultScreen extends StatelessWidget {
                 )
               : null,
           body: switch (controller.status) {
-            ScanStatus.running => const _Centered(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text('Analyzing…'),
-                ],
-              ),
+            ScanStatus.running => _AnalyzingState(
+              phase: controller.scanPhase,
+              progress: controller.scanProgress,
             ),
             ScanStatus.error => _Centered(
               child: Padding(
@@ -115,7 +109,7 @@ class _ResultList extends StatelessWidget {
         _DistanceCorrection(controller: controller, items: items),
         const Divider(height: 16),
         _IngredientSummary(items: items),
-        const SizedBox(height: 104),
+        const SizedBox(height: 16),
       ],
     );
   }
@@ -654,4 +648,64 @@ class _Centered extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(child: child);
+}
+
+class _AnalyzingState extends StatefulWidget {
+  const _AnalyzingState({required this.phase, required this.progress});
+
+  final String phase;
+  final double progress;
+
+  @override
+  State<_AnalyzingState> createState() => _AnalyzingStateState();
+}
+
+class _AnalyzingStateState extends State<_AnalyzingState>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  )..repeat(reverse: true);
+
+  late final Animation<double> _scale = Tween<double>(
+    begin: 0.88,
+    end: 1.08,
+  ).animate(CurvedAnimation(parent: _pulse, curve: Curves.easeInOut));
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ScaleTransition(
+              scale: _scale,
+              child: Image.asset(
+                'assets/branding/app_icon.png',
+                width: 96,
+                height: 96,
+              ),
+            ),
+            const SizedBox(height: 32),
+            LinearProgressIndicator(value: widget.progress == 0.0 ? null : widget.progress),
+            const SizedBox(height: 16),
+            Text(
+              widget.phase.isEmpty ? 'Analyzing…' : widget.phase,
+              style: theme.textTheme.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

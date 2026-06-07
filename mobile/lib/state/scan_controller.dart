@@ -44,6 +44,8 @@ class ScanController extends ChangeNotifier {
   String? error;
   ScanResult result = ScanResult.empty;
   Duration? scanDuration;
+  String scanPhase = '';
+  double scanProgress = 0.0;
 
   // Cached scan state for the recompute path (G6).
   img.Image? _image;
@@ -92,21 +94,60 @@ class ScanController extends ChangeNotifier {
     status = ScanStatus.running;
     error = null;
     scanDuration = null;
+    scanPhase = 'Loading models…';
+    scanProgress = 0.1;
     notifyListeners();
     try {
       await _ensureServices(settings);
       final List<dynamic> results;
       if (settings.parallelInference) {
+        scanPhase = 'Detecting ingredients & estimating depth…';
+        scanProgress = 0.4;
+        notifyListeners();
+        Future<void>.delayed(const Duration(seconds: 2)).then((_) {
+          if (status == ScanStatus.running) {
+            scanPhase = 'Running depth model…';
+            scanProgress = 0.6;
+            notifyListeners();
+          }
+        });
+        Future<void>.delayed(const Duration(seconds: 4)).then((_) {
+          if (status == ScanStatus.running) {
+            scanPhase = 'Refining depth map…';
+            scanProgress = 0.75;
+            notifyListeners();
+          }
+        });
         results = await Future.wait([
           _detector!.detect(image, confThreshold: settings.confidenceThreshold),
           _depth!.estimate(image, focalPx: focalPx),
         ]);
       } else {
-        results = [
-          await _detector!.detect(image, confThreshold: settings.confidenceThreshold),
-          await _depth!.estimate(image, focalPx: focalPx),
-        ];
+        scanPhase = 'Detecting ingredients…';
+        scanProgress = 0.35;
+        notifyListeners();
+        final detections = await _detector!.detect(
+          image,
+          confThreshold: settings.confidenceThreshold,
+        );
+        scanPhase = 'Estimating depth…';
+        scanProgress = 0.55;
+        notifyListeners();
+        // Midpoint update after 2 s — fires concurrently, does not block inference.
+        Future<void>.delayed(const Duration(seconds: 2)).then((_) {
+          if (status == ScanStatus.running) {
+            scanPhase = 'Estimating depth…';
+            scanProgress = 0.75;
+            notifyListeners();
+          }
+        });
+        final depthMap = await _depth!.estimate(image, focalPx: focalPx);
+        results = [detections, depthMap];
       }
+      scanPhase = 'Computing weights…';
+      scanProgress = 0.9;
+      notifyListeners();
+      await Future<void>.delayed(Duration.zero); // let the frame render
       final detections = results[0] as List<Detection>;
       final depthMap = results[1] as DepthMap;
 
@@ -122,6 +163,7 @@ class ScanController extends ChangeNotifier {
       _removed.clear();
 
       _rebuild();
+      await Future<void>.delayed(const Duration(milliseconds: 200));
       scanDuration = stopwatch.elapsed;
       status = ScanStatus.success;
     } catch (e) {
