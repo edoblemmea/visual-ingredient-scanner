@@ -102,18 +102,25 @@ class ScanController extends ChangeNotifier {
       final List<dynamic> results;
       if (settings.parallelInference) {
         scanPhase = 'Detecting ingredients & estimating depth…';
-        scanProgress = 0.4;
+        scanProgress = 0.2;
         notifyListeners();
         Future<void>.delayed(const Duration(seconds: 2)).then((_) {
           if (status == ScanStatus.running) {
-            scanPhase = 'Running depth model…';
-            scanProgress = 0.6;
+            scanPhase = 'Detecting ingredients & estimating depth…';
+            scanProgress = 0.4;
             notifyListeners();
           }
         });
         Future<void>.delayed(const Duration(seconds: 4)).then((_) {
           if (status == ScanStatus.running) {
-            scanPhase = 'Refining depth map…';
+            scanPhase = 'Detecting ingredients & estimating depth…';
+            scanProgress = 0.6;
+            notifyListeners();
+          }
+        });
+        Future<void>.delayed(const Duration(seconds: 6)).then((_) {
+          if (status == ScanStatus.running) {
+            scanPhase = 'Detecting ingredients & estimating depth…';
             scanProgress = 0.75;
             notifyListeners();
           }
@@ -124,14 +131,14 @@ class ScanController extends ChangeNotifier {
         ]);
       } else {
         scanPhase = 'Detecting ingredients…';
-        scanProgress = 0.35;
+        scanProgress = 0.3;
         notifyListeners();
         final detections = await _detector!.detect(
           image,
           confThreshold: settings.confidenceThreshold,
         );
         scanPhase = 'Estimating depth…';
-        scanProgress = 0.55;
+        scanProgress = 0.5;
         notifyListeners();
         // Midpoint update after 2 s — fires concurrently, does not block inference.
         Future<void>.delayed(const Duration(seconds: 2)).then((_) {

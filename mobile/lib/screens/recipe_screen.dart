@@ -22,6 +22,8 @@ class _RecipeScreenState extends State<RecipeScreen> {
   final Set<int> _savedRecipeIndexes = {};
   int _selected = 0;
   List<Recipe> _recipes = const [];
+  String _loadingPhase = 'Preparing ingredients…';
+  double _loadingProgress = 0.1;
 
   @override
   void didChangeDependencies() {
@@ -38,6 +40,22 @@ class _RecipeScreenState extends State<RecipeScreen> {
   }
 
   Future<void> _generateOnce() async {
+    Future<void>.delayed(const Duration(seconds: 1)).then((_) {
+      if (_loading && mounted) {
+        setState(() {
+          _loadingPhase = 'Crafting recipes…';
+          _loadingProgress = 0.45;
+        });
+      }
+    });
+    Future<void>.delayed(const Duration(seconds: 2)).then((_) {
+      if (_loading && mounted) {
+        setState(() {
+          _loadingPhase = 'Finishing up…';
+          _loadingProgress = 0.75;
+        });
+      }
+    });
     final settings = context.read<SettingsProvider>().settings;
     final recipes = await RecipeService(
       apiKey: settings.geminiApiKey,
@@ -99,7 +117,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Recipes')),
       body: _loading
-          ? const _LoadingRecipes()
+          ? _LoadingRecipes(phase: _loadingPhase, progress: _loadingProgress)
           : _recipes.isEmpty
           ? _EmptyRecipes(ingredientWeights: widget.ingredientWeights)
           : Column(
@@ -148,34 +166,80 @@ class _RecipeScreenState extends State<RecipeScreen> {
                 ),
               ],
             ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-          child: FilledButton.icon(
-            icon: const Icon(Icons.check),
-            label: const Text('Finished'),
-            onPressed: _finish,
-          ),
-        ),
-      ),
+      bottomNavigationBar: _loading
+          ? null
+          : SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                child: FilledButton.icon(
+                  icon: const Icon(Icons.check),
+                  label: const Text('Finished'),
+                  onPressed: _finish,
+                ),
+              ),
+            ),
     );
   }
 }
 
-class _LoadingRecipes extends StatelessWidget {
-  const _LoadingRecipes();
+class _LoadingRecipes extends StatefulWidget {
+  const _LoadingRecipes({required this.phase, required this.progress});
+
+  final String phase;
+  final double progress;
 
   @override
-  Widget build(BuildContext context) => const Center(
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        CircularProgressIndicator(),
-        SizedBox(height: 16),
-        Text('Generating recipes…'),
-      ],
-    ),
-  );
+  State<_LoadingRecipes> createState() => _LoadingRecipesState();
+}
+
+class _LoadingRecipesState extends State<_LoadingRecipes>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  )..repeat(reverse: true);
+
+  late final Animation<double> _scale = Tween<double>(
+    begin: 0.88,
+    end: 1.08,
+  ).animate(CurvedAnimation(parent: _pulse, curve: Curves.easeInOut));
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ScaleTransition(
+              scale: _scale,
+              child: Image.asset(
+                'assets/branding/app_icon.png',
+                width: 96,
+                height: 96,
+              ),
+            ),
+            const SizedBox(height: 32),
+            LinearProgressIndicator(value: widget.progress),
+            const SizedBox(height: 16),
+            Text(
+              widget.phase,
+              style: theme.textTheme.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _EmptyRecipes extends StatelessWidget {
