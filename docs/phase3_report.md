@@ -12,21 +12,34 @@ Phase 3 ships a Flutter mobile app that runs the full computer-vision stack on d
 YOLO v26m food detection, Metric3D/Depth Anything depth estimation, density-table lookup,
 pinhole/shape weight estimation, manual correction tools, and optional Gemini recipe generation.
 
-Only recipe generation uses the network. Detector, depth, density lookup, weight estimation,
-manual annotation, density overrides, and scale correction all run locally.
+CV models are **not bundled** — they are downloaded on demand from the project's public
+GitHub repository and stored on-device. The home screen shows a download banner when no
+models are present; individual models can be downloaded or deleted via Settings → Manage models.
+
+Only recipe generation uses the network (one Gemini call per scan). Detector, depth,
+density lookup, weight estimation, manual annotation, density overrides, and scale
+correction all run locally.
 
 ## 2. Implemented Mobile Features
 
 | Area | Status |
 |---|---|
-| Asset catalog and bundled model registry | Done |
+| Asset catalog and model registry with download metadata | Done |
+| On-demand model downloads with per-model progress tracking | Done |
+| Model management: download / delete individual models from Settings | Done |
+| Auto-select first downloaded model of each type | Done |
+| Auto-reselect on model deletion (switches to next available) | Done |
+| Home-screen download banner when models missing | Done |
 | Settings persistence, model selection, confidence threshold | Done |
 | Density table editor with live recompute | Done |
-| Detector and depth ONNX Runtime integration | Done |
+| Detector and depth ONNX Runtime integration (loaded from disk) | Done |
+| Optional parallel inference (detector + depth concurrently) | Done |
 | Isolated scan pipeline and result state machine | Done |
 | Camera/sample-image scan screen | Done |
 | Result list with per-item weight details | Done |
 | Gemini recipe cards with graceful fallback | Done |
+| Recipe sharing and save to My recipes | Done |
+| Multi-select delete in saved recipes | Done |
 | Optional bbox and depth-map developer views | Done |
 | Manual distance/scale correction | Done |
 | Manual annotation, smart lasso boxes, relabel/remove | Done |

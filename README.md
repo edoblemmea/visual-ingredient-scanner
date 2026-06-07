@@ -79,18 +79,29 @@ visual-ingredient-scanner/
 │   ├── lib/
 │   │   ├── main.dart
 │   │   ├── screens/
+│   │   │   ├── home_screen.dart
 │   │   │   ├── scan_screen.dart
 │   │   │   ├── annotate_screen.dart
-│   │   │   └── result_screen.dart
-│   │   └── services/
-│   │       ├── detector_service.dart
-│   │       ├── depth_service.dart
-│   │       ├── weight_service.dart
-│   │       ├── density_service.dart
-│   │       └── recipe_service.dart
+│   │   │   ├── result_screen.dart
+│   │   │   ├── settings_screen.dart
+│   │   │   ├── model_download_screen.dart  ← first-launch / banner download UI
+│   │   │   └── model_manager_screen.dart   ← per-model download / delete
+│   │   ├── services/
+│   │   │   ├── detector_service.dart
+│   │   │   ├── depth_service.dart
+│   │   │   ├── weight_service.dart
+│   │   │   ├── density_service.dart
+│   │   │   ├── recipe_service.dart
+│   │   │   └── model_download_service.dart ← HTTP streaming download + disk management
+│   │   └── state/
+│   │       ├── scan_controller.dart
+│   │       ├── settings_provider.dart
+│   │       └── model_manager_provider.dart ← tracks download state, auto-select callbacks
 │   └── assets/
-│       ├── models/
-│       └── food_densities.json
+│       ├── model_registry.json   ← model metadata + download URLs (no .onnx files committed)
+│       ├── data/                 ← food_densities.json, labels.txt
+│       ├── samples/              ← bundled demo images
+│       └── branding/             ← app icon
 │
 ├── docs/
 │   ├── phase1_definition.pdf
@@ -147,26 +158,42 @@ flutter pub get
 flutter run
 ```
 
-#### Bundled models
+#### On-demand model downloads
 
-The app compiles its CV models in as Flutter assets under `mobile/assets/`.
+Models are **not bundled** in the app — they are downloaded on first use from the project's
+public GitHub repository and stored in the device's app-documents directory. The app
+manages downloads through a `ModelManagerProvider` and `ModelDownloadService`.
 
-| Asset | Size | In git? |
+On first launch the home screen shows a prominent download banner. Tapping it opens a
+dedicated download screen; nothing downloads until the user explicitly initiates it. Once
+both a detector model and a depth model are on disk the Scan button becomes active.
+
+Additional models can be downloaded or deleted at any time via **Settings → Manage models**.
+When the currently selected model is deleted the app automatically switches to the next
+available model of that type.
+
+| Model | Size | Downloaded by default |
 |---|---|---|
-| `assets/models/epoch30.onnx` (YOLO v26m) | ~78 MB | ✅ committed |
-| `assets/models/epoch40.onnx` (YOLO v26m, default detector) | ~78 MB | ✅ committed |
-| `assets/models/food_detector_v26m_best.onnx` (YOLO v26m best) | ~78 MB | ✅ committed |
-| `assets/models/metric3d-vit-small-fp16.onnx` (default depth) | ~76 MB | ✅ committed |
-| `assets/models/depth_anything_v2_small.onnx` (Depth Anything V2-S metric indoor graph) | ~2 MB | ✅ committed |
-| `assets/models/depth_anything_v2_small.onnx.data` (Depth Anything V2-S metric indoor weights) | ~99 MB | ✅ committed |
+| YOLO v26m epoch40 (default detector) | ~78 MB | Yes (first-launch prompt) |
+| YOLO v26m epoch30 | ~78 MB | On demand (Manage models) |
+| YOLO v26m best | ~78 MB | On demand (Manage models) |
+| Metric3D ViT-S fp16 (default depth) | ~76 MB | Yes (first-launch prompt) |
+| Depth Anything V2-S metric indoor | ~101 MB (graph + weights) | On demand (Manage models) |
+
+Download URLs point to `raw.githubusercontent.com/edoblemmea/visual-ingredient-scanner/master/mobile/assets/models/`.
 
 #### Current mobile features
 
 - On-device detection, depth, density lookup, and weight estimation.
 - Camera capture plus bundled sample-image fallback.
+- On-demand model downloads with per-model progress; model management (download / delete).
+- Auto-select first downloaded model of each type; auto-reselect on deletion.
 - Editable density table, model selection, confidence threshold, Gemini key/model settings.
+- Optional parallel inference (detector + depth concurrently).
 - Manual scale correction using a known camera-to-object distance.
 - Manual annotation, smart lasso boxes, relabelling, and removing detections.
+- Confirm ingredients, then generate recipes with one Gemini call; share and save recipes.
+- Multi-select delete in saved recipes.
 - Optional developer views for bounding boxes, depth maps, scan timing, detection counts, and active scale.
 - Graceful error, empty-result, and no-recipe fallback states.
 
@@ -194,8 +221,8 @@ flutter run -d emulator-5554     # or: flutter run -d android
 ```
 
 While running, press `r` for hot reload, `R` for hot restart, and `q` to quit. The first
-Android build is slow (Gradle downloads its dependencies) and the ~235 MB of bundled model
-assets make the install step take a while; subsequent runs are fast.
+Android build is slow (Gradle downloads its dependencies). Models are not bundled, so the
+install is fast; model downloads happen inside the running app on first use.
 
 ---
 
@@ -232,8 +259,8 @@ The depth stage auto-selects its preprocessing from the chosen ONNX, so any of t
 | Phase | Deadline | Status |
 |---|---|---|
 | Phase 1 — Definition | May 2026 | done |
-| Phase 2 — 50 % checkpoint | 26–28 May 2026 | in progress |
-| Phase 3 — Final delivery | 15–17 June 2026 | upcoming |
+| Phase 2 — 50 % checkpoint | 26–28 May 2026 | done |
+| Phase 3 — Final delivery | 15–17 June 2026 | done |
 | Phase 3 — Presentation | 16–18 June 2026 | upcoming |
 | Phase 4 — Peer evaluation | 22 June 2026 | upcoming |
 

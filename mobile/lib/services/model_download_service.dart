@@ -5,7 +5,7 @@ import 'package:path_provider/path_provider.dart';
 
 class ModelDownloadService {
   static Future<String> modelsDirectory() async {
-    final dir = await getApplicationDocumentsDirectory();
+    final dir = await getApplicationSupportDirectory();
     final modelsDir = Directory('${dir.path}/models');
     await modelsDir.create(recursive: true);
     return modelsDir.path;

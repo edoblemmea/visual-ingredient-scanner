@@ -58,7 +58,7 @@ shipped mobile state.
 ### Stage ① — YOLO v26m ONNX
 
 - Mobile model family: YOLO v26m ONNX, with epoch30, epoch40, and best checkpoints
-  bundled under `mobile/assets/models/`; epoch40 is the default detector.
+  available for on-demand download; epoch40 is the default detector.
 - Flutter runtime: `flutter_onnxruntime`
 - Phase 2 YOLO11s artifacts are retained under `models/yolo/v11s/` for prototype
   history, but the shipped mobile app uses the v26m ONNX assets.
@@ -196,26 +196,32 @@ visual-ingredient-scanner/
 │   ├── lib/
 │   │   ├── main.dart
 │   │   ├── screens/
+│   │   │   ├── home_screen.dart
 │   │   │   ├── scan_screen.dart
 │   │   │   ├── annotate_screen.dart
-│   │   │   └── result_screen.dart
+│   │   │   ├── result_screen.dart
+│   │   │   ├── settings_screen.dart
+│   │   │   ├── model_download_screen.dart  ← first-launch / banner download UI
+│   │   │   └── model_manager_screen.dart   ← per-model download / delete
 │   │   ├── services/
-│   │   │   ├── detector_service.dart   ← ONNX Runtime wrapper
-│   │   │   ├── depth_service.dart      ← ONNX Runtime wrapper (Metric3D/Depth Anything)
-│   │   │   ├── weight_service.dart     ← pinhole + heuristics in Dart
-│   │   │   ├── density_service.dart    ← static food_densities.json lookup
-│   │   │   └── recipe_service.dart     ← Gemini recipe call
+│   │   │   ├── detector_service.dart       ← ONNX Runtime wrapper (loads from disk)
+│   │   │   ├── depth_service.dart          ← ONNX Runtime wrapper (Metric3D/Depth Anything)
+│   │   │   ├── weight_service.dart         ← pinhole + heuristics in Dart
+│   │   │   ├── density_service.dart        ← static food_densities.json lookup
+│   │   │   ├── recipe_service.dart         ← Gemini recipe call
+│   │   │   └── model_download_service.dart ← HTTP streaming download + disk management
+│   │   ├── state/
+│   │   │   ├── scan_controller.dart
+│   │   │   ├── settings_provider.dart
+│   │   │   └── model_manager_provider.dart ← download state, auto-select callbacks
 │   │   └── models/
 │   │       ├── detection_result.dart
 │   │       └── recipe.dart
 │   ├── assets/
-│   │   ├── models/
-│   │   │   ├── epoch40.onnx
-│   │   │   ├── epoch30.onnx
-│   │   │   ├── food_detector_v26m_best.onnx
-│   │   │   └── metric3d-vit-small-fp16.onnx
-│   │   ├── data/
-│   │   └── samples/
+│   │   ├── model_registry.json   ← model metadata + download URLs (no .onnx files here)
+│   │   ├── data/                 ← food_densities.json, labels.txt (bundled)
+│   │   ├── samples/              ← bundled demo images
+│   │   └── branding/             ← app icon
 │   ├── android/
 │   ├── ios/
 │   └── pubspec.yaml
@@ -223,6 +229,7 @@ visual-ingredient-scanner/
 ├── docs/
 │   ├── phase1_definition.pdf  ← submitted Phase 1 document
 │   ├── phase2_report.md
+│   ├── phase3_prd.md
 │   └── phase3_report.md
 │
 └── notebooks/
@@ -247,7 +254,9 @@ visual-ingredient-scanner/
 - Inference on a background `Isolate` — never block the UI thread
 - State management: `provider` or plain `ChangeNotifier` (no Riverpod/Bloc — keep it simple)
 - Gemini calls via `google_generative_ai` Dart package
-- API key stored in `.env` (gitignored), loaded via `flutter_dotenv`
+- API key stored in `flutter_secure_storage` (Keychain/Keystore) — never bundled in the app
+- Model downloads via `http` package (streaming with progress); stored in `path_provider` app-docs dir
+- Models are **not** Flutter assets — they are downloaded on demand and loaded with `fromFile()`
 
 ### Gemini API
 - Only stage ⑤ (recipe generation) uses Gemini — density is now a static table (stage ③).

@@ -1,9 +1,9 @@
 # PRD — Visual Ingredient Scanner · Flutter Mobile App (Phase 3)
 
-**Status:** Draft for Phase 3 (Flutter app, 15–17 June 2026)
+**Status:** Implemented — Phase 3 delivered 8 June 2026
 **Owners:** Pol Plana, Emma Nájera, Houda El Fezzak
 **Scope:** **Mobile app only.** Port the validated Phase 2 Python pipeline to an on-device
-Flutter app, with all CV models **compiled into the app bundle**, the detector and depth
+Flutter app, with CV models **downloaded on demand** (not bundled), the detector and depth
 models **selectable at runtime**, an **editable density table**, **persistence**, depth/box
 **visualisations**, a **manual distance correction**, and **manual annotation of undetected
 food**.
@@ -30,55 +30,49 @@ scale, and fix detections — all on-device.
 
 ---
 
-## 2. Models bundled in the app
+## 2. Models — on-demand downloads ✅ SHIPPED
 
-Only **ONNX** assets are shipped — both stages run through `flutter_onnxruntime` (ORT 1.22) on device, giving a
-single inference code path for detector and depth.
+Both stages run through `flutter_onnxruntime` (ORT 1.22) on device. Models are **not bundled**
+in the app binary — they are downloaded on demand from the project's public GitHub repository
+(`raw.githubusercontent.com/edoblemmea/visual-ingredient-scanner/master/mobile/assets/models/`)
+and stored in the device's app-documents directory.
 
 ### 2.1 Detector models (YOLO, selectable)
-Ship **only** the two correctly-exported NMS-baked ONNX detectors:
 
-| id | File | Source | I/O |
+| id | Filename | Size | I/O |
 |---|---|---|---|
-| `v26m_e30` (default) | `assets/models/epoch30.onnx` | `models/yolo/v26m/v26m_v7/epoch30.onnx` (~78 MB) | in `images[1,3,640,640]` → out `output0[1,300,6]` |
-| `v26m_e40` | `assets/models/epoch40.onnx` | `models/yolo/v26m/v26m_v7/epoch40.onnx` (~78 MB) | same as above |
+| `v26m_e40` (default) | `epoch40.onnx` | ~78 MB | `images[1,3,640,640]` → `output0[1,300,6]` |
+| `v26m_e30` | `epoch30.onnx` | ~78 MB | same |
+| `v26m_best` | `food_detector_v26m_best.onnx` | ~78 MB | same |
 
-- `output0[1,300,6]` rows are `[x1, y1, x2, y2, score, class_id]` in 640×640 space — **NMS is
-  already baked in**. No manual NMS in Dart; just threshold on `score` and rescale boxes to the
-  original image.
-- ✅ Both `epoch30.onnx` and `epoch40.onnx` exist on disk and share the verified I/O above. All
-  other `.pt` / older variants are **excluded**.
+`output0[1,300,6]` rows are `[x1, y1, x2, y2, score, class_id]` — NMS is baked in.
 
-### 2.2 Depth models (selectable — the "scale" model)
-| id | File | family | size | role |
+### 2.2 Depth models (selectable)
+
+| id | Filename(s) | family | total size | role |
 |---|---|---|---|---|
-| `metric3d` (default) | `assets/models/metric3d-vit-small-fp16.onnx` | `metric3d` | 72 MB | true metric depth |
-| `depthanything` | `assets/models/depth_anything_v2_small.onnx` (+`.data`) | `depthanything` | ~96 MB | relative-depth alternative |
+| `metric3d` (default) | `metric3d-vit-small-fp16.onnx` | `metric3d` | ~76 MB | true metric depth |
+| `depthanything` | `depth_anything_v2_small.onnx` + `.onnx.data` | `depthanything` | ~101 MB | relative-depth alternative |
 
-`family` selects the preprocessing branch (mirrors [depth.py](../pipeline/depth.py): Metric3D →
-canonical 616×1064 + de-canonicalise with focal; Depth Anything → 518×518). On mobile we key off
-`family` explicitly instead of sniffing ONNX outputs.
+`family` selects the preprocessing branch (Metric3D → canonical 616×1064 + de-canonicalise with
+focal; Depth Anything → 518×518). Depth Anything uses ONNX external data — both files are
+downloaded together.
 
-### 2.3 Density data (editable, not a model)
-- `assets/data/food_densities.json` — bundled baseline ([data/food_densities.json](../data/food_densities.json)).
-- `assets/data/labels.txt` — class list from [data/classes.yaml](../data/classes.yaml) (86 classes),
-  in detector output-index order. App asserts length 86 at load.
-- User edits to densities are stored as a **persisted override map** merged over the baseline.
+### 2.3 Density data and labels (bundled, not downloaded)
 
-### 2.4 Model registry (drives the pickers)
-`assets/model_registry.json`:
-```json
-{
-  "detectors": [
-    {"id":"v26m_e30","label":"YOLO v26m (epoch 30)","asset":"models/epoch30.onnx","inputSize":640},
-    {"id":"v26m_e40","label":"YOLO v26m (epoch 40)","asset":"models/epoch40.onnx","inputSize":640,"default":true}
-  ],
-  "depth": [
-    {"id":"metric3d","label":"Metric3D ViT-S (metric)","asset":"models/metric3d-vit-small-fp16.onnx","family":"metric3d","default":true},
-    {"id":"depthanything","label":"Depth Anything V2-S (relative)","asset":"models/depth_anything_v2_small.onnx","family":"depthanything"}
-  ]
-}
-```
+- `assets/data/food_densities.json` — bundled baseline densities (kg/m³, 109 classes).
+- `assets/data/labels.txt` — class list (86 classes in detector output-index order).
+- User density edits are stored as a persisted override map merged over the baseline.
+
+### 2.4 Model registry (drives pickers and download UI)
+
+`assets/model_registry.json` carries metadata for all models including download URLs, file sizes,
+and optional external-data fields. `ModelManagerProvider` reads this registry and tracks per-model
+download state. `ModelDownloadService` performs HTTP streaming downloads with progress callbacks.
+
+When the first model of a type is successfully downloaded, `ModelManagerProvider` fires a callback
+to `SettingsProvider` to auto-select it. When the selected model is deleted, the provider
+auto-selects the next available model of that type.
 
 ---
 
@@ -452,7 +446,7 @@ shipped detector training log (`mAP50-95 = 0.552`, `docs/results.csv` epoch 25).
 
 `camera`, `image` (EXIF + pixel ops + draw), `flutter_onnxruntime` (ORT 1.22),
 `google_generative_ai`, `flutter_secure_storage` (API key at rest), `provider`,
-`shared_preferences`, `path_provider`.
+`shared_preferences`, `path_provider`, `http` (model downloads), `share_plus` (recipe sharing).
 
 ---
 
@@ -460,10 +454,10 @@ shipped detector training log (`mAP50-95 = 0.552`, `docs/results.csv` epoch 25).
 
 | Risk | Mitigation |
 |---|---|
-| `epoch40.onnx` missing | S0 exports it before bundling |
-| Two detectors + two depth ONNX ≈ 320 MB bundle | acceptable for the academic demo; if needed, mark `depthanything` an eval-only asset |
-| Metric3D fp16 won't load on mobile ORT | reduced graph-opt level (see depth.py); fall back to fp32 reduced if required |
-| EXIF focal stripped by camera plugin → wrong metric scale | read focal from camera metadata; ×0.8 fallback; FR6 lets the user correct it |
-| Class-order mismatch after export | ship `labels.txt`; assert length 86 at load |
-| Metric3D scale ambiguity on featureless close-ups | documented limitation; FR6 distance correction is the in-app fix |
+| Models not available on first launch | Download banner + explicit user-initiated download; Scan disabled until ready |
+| GitHub raw CDN rate limits or unavailability | Download screen shows error + Retry; scan remains unavailable but the rest of the app works |
+| Metric3D fp16 won't load on mobile ORT | Reduced graph-opt level (handled in DepthService); fall back to fp32 if required |
+| EXIF focal stripped by camera plugin → wrong metric scale | Read focal from camera metadata; ×0.8 fallback; FR6 distance correction is the in-app fix |
+| Class-order mismatch after export | `labels.txt` bundled; length assertion at load |
+| Metric3D scale ambiguity on featureless close-ups | Documented limitation; FR6 distance correction is the in-app fix |
 ```
