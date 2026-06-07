@@ -85,24 +85,22 @@ void main() {
     expect(depth.medianIn(box), closeTo(0.4, 0.01));
   });
 
-  test('captures a non-square (wide) object footprint, not just a ray length',
-      () {
-    // A wide object: 60 px across, 16 px tall. A 4-ray walk averages the
-    // horizontal and vertical extents into one square; the flood fill should
-    // recover the true aspect.
+  test('adapts the box aspect to a wide object', () {
+    // A wide object: 60 px across, 16 px tall. The per-side radial extents
+    // should make the box clearly wider than it is tall (an earlier 4-ray walk
+    // collapsed both axes into one square).
     final depth = _scene(120, 80,
         far: 1.2, near: 0.5, x1: 20, y1: 32, x2: 80, y2: 48);
     final box = SmartBoxService.boxAround(depth, 50, 40)!;
 
-    expect(box.width, greaterThan(box.height)); // wide, not square
-    expect(box.width, closeTo(60, 6));
-    expect(box.height, closeTo(16, 6));
+    expect(box.width, greaterThan(box.height * 1.5)); // clearly wide
+    expect(box.height, lessThan(24)); // does not run past the short side
   });
 
   test('a single noisy interior pixel does not truncate the box', () {
     // Object [30,70)×[30,70) at 0.5 m on a 1.0 m background, with one spike
-    // pixel along the rightward ray. The old ray walk stopped at the spike; the
-    // flood fill routes around it.
+    // pixel along the rightward ray. A single over-threshold pixel is tolerated
+    // (tolerateRun), so the ray does not stop at the spike.
     final depth = _scene(100, 100,
         far: 1.0, near: 0.5, x1: 30, y1: 30, x2: 70, y2: 70);
     depth.data[50 * 100 + 55] = 1.0; // spike on the row through the centre

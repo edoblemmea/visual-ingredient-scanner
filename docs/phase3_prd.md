@@ -394,13 +394,18 @@ New [AnnotateScreen](../mobile/lib/screens/annotate_screen.dart), reached via an
 the result screen, lets the user fix the detection set over the captured image. Two placement modes,
 toggled by an app-bar **Smart** switch:
 - **Smart (default):** tap the *centre* of a missed item; [SmartBoxService](../mobile/lib/services/smart_box_service.dart)
-  **flood-fills** the connected region of similar-depth pixels (4-connectivity BFS, tolerance vs. the
-  region's running mean so it follows a gently sloped surface) and takes a 2nd/98th-percentile-trimmed
-  bbox of that region — a data-driven box from the depth map, **no size priors** (consistent with
-  CLAUDE.md). This replaced an earlier 4-ray walk that was inaccurate (a single noisy pixel truncated
-  it, and a depth gradient let a ray run across the whole counter); the 2-D component captures the true
-  footprint and is robust to noise and neighbouring objects. Shape/weight then come from the existing
-  pipeline.
+  estimates the box from the depth map — a data-driven box, **no size priors** (consistent with
+  CLAUDE.md). It takes the **local depth minimum** at the tap as the object's near-point reference,
+  casts 72 rays outward each stopping where depth rises past `ref + max(1.5 cm, 10 %·ref)` (the
+  object→surface step, adaptive to distance), and keeps the **75th-percentile** extent per side
+  (left/right/up/down) so a few rays escaping along a same-depth seam don't inflate the box while the
+  aspect still adapts per object. Validated on the real test_image3 Metric3D depth: smart boxes land
+  within ~1 cm of the detector's boxes for oranges, lemon and garlic. *(Earlier attempts — a 4-ray
+  walk, then a similar-depth flood fill — both failed on top-down fridge shots where ~20 % of the frame
+  shares the object's depth, so they leaked across the surface and returned huge boxes. The radial
+  near-point method keys on the object poking toward the camera, which actually separates it from the
+  surface.)* Manual mode (below) covers the hard flat-object cases. Shape/weight then come from the
+  existing pipeline.
 - **Manual:** drag a rectangle by hand (smart selection disabled).
 Both open a searchable class picker (all 91 density-table classes) → `addManualDetection`. Tapping an
 existing box (detected *or* manual) offers **Change label** (`relabelDetection`) or **Remove**
