@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
 
 import '../models/app_settings.dart';
+import '../models/bbox.dart';
 import '../models/depth_map.dart';
 import '../models/detection.dart';
 import '../models/model_choice.dart';
@@ -12,6 +13,7 @@ import '../services/density_service.dart';
 import '../services/depth_service.dart';
 import '../services/detector_service.dart';
 import '../services/recipe_service.dart';
+import '../services/smart_box_service.dart';
 import '../services/weight_service.dart';
 
 enum ScanStatus { idle, running, success, error }
@@ -41,7 +43,11 @@ class ScanController extends ChangeNotifier {
   List<Detection> _detections = const [];
   AppSettings _settings = AppSettings.defaults;
   double _depthScale = 1.0; // distance-correction multiplier (S15)
-  final List<Detection> _manualDetections = []; // S16
+  final List<Detection> _manualDetections = []; // S16 — user-drawn boxes
+  // S16 edits applied to detector detections during recompute, keyed by the
+  // detector Detection instance: relabels (new class) and removals.
+  final Map<Detection, String> _relabels = {};
+  final Set<Detection> _removed = {};
 
   img.Image? get image => _image;
 
@@ -93,6 +99,8 @@ class ScanController extends ChangeNotifier {
       _settings = settings;
       _depthScale = 1.0;
       _manualDetections.clear();
+      _relabels.clear();
+      _removed.clear();
 
       _rebuild();
       status = ScanStatus.success;
@@ -187,14 +195,53 @@ class ScanController extends ChangeNotifier {
     recompute();
   }
 
+  /// S16 — smart-tap box: estimate an object's bbox from the **raw** depth map
+  /// around a tapped centre (px in original-image space). Null if there is no
+  /// scan or the point has no valid depth.
+  BBox? smartBoxAt(double cx, double cy) {
+    final depth = _depthMap;
+    if (depth == null) return null;
+    return SmartBoxService.boxAround(depth, cx, cy);
+  }
+
+  /// Original capture dimensions (px) the bbox coordinates live in.
+  int get imageWidth => _depthMap?.width ?? 0;
+  int get imageHeight => _depthMap?.height ?? 0;
+
   /// S16 — add a user-drawn box for a missed item, then recompute.
   void addManualDetection(Detection detection) {
     _manualDetections.add(detection.copyWith(isManual: true));
     recompute();
   }
 
-  void removeManualDetection(Detection detection) {
-    _manualDetections.remove(detection);
+  /// S16 — remove an item, whether it was user-drawn or detector-produced. A
+  /// detector detection is hidden (kept so the model output stays intact for a
+  /// later re-scan); a manual one is dropped outright.
+  void removeDetection(Detection detection) {
+    if (_manualDetections.remove(detection)) {
+      recompute();
+      return;
+    }
+    _removed.add(detection);
+    recompute();
+  }
+
+  /// S16 — change the class of an item (a mislabelled or user-drawn box). Manual
+  /// detections are edited in place; detector ones get a relabel overlay applied
+  /// at recompute (the raw model output is left untouched).
+  void relabelDetection(Detection detection, String newClass) {
+    final manualIndex = _manualDetections.indexOf(detection);
+    if (manualIndex >= 0) {
+      _manualDetections[manualIndex] =
+          detection.copyWith(className: newClass, classId: null);
+      recompute();
+      return;
+    }
+    if (detection.className == newClass) {
+      _relabels.remove(detection);
+    } else {
+      _relabels[detection] = newClass;
+    }
     recompute();
   }
 
@@ -203,9 +250,24 @@ class ScanController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Detector detections with the S16 edits applied (removals dropped, relabels
+  /// swapped) followed by the manual boxes — the set actually weighed.
+  List<Detection> get effectiveDetections {
+    final out = <Detection>[];
+    for (final det in _detections) {
+      if (_removed.contains(det)) continue;
+      final relabel = _relabels[det];
+      out.add(relabel == null
+          ? det
+          : det.copyWith(className: relabel, classId: null));
+    }
+    out.addAll(_manualDetections);
+    return out;
+  }
+
   void _rebuild() {
     result = computeResult(
-      detections: [..._detections, ..._manualDetections],
+      detections: effectiveDetections,
       depthMap: _depthMap!,
       focalPx: _focalPx,
       baselineDensities: catalog.densities,

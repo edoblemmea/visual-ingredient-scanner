@@ -11,6 +11,7 @@ import '../services/depth_visualizer.dart';
 import '../state/scan_controller.dart';
 import '../state/settings_provider.dart';
 import '../widgets/bbox_overlay.dart';
+import 'annotate_screen.dart';
 
 /// Shows the scan outcome: per-ingredient weights with expandable detail,
 /// recipes, and optional debug overlays (bbox / depth map, FR5).
@@ -85,10 +86,27 @@ class _ResultList extends StatelessWidget {
             showDepthMap: settings.showDepthMap,
           ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Text(
-            '${items.length} items · ${result.ingredientWeights.length} ingredients',
-            style: Theme.of(context).textTheme.titleMedium,
+          padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '${items.length} items · ${result.ingredientWeights.length} ingredients',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+              TextButton.icon(
+                icon: const Icon(Icons.edit_location_alt_outlined),
+                label: const Text('Edit items'),
+                onPressed: controller.hasScan
+                    ? () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const AnnotateScreen(),
+                          ),
+                        )
+                    : null,
+              ),
+            ],
           ),
         ),
         for (final item in items) _ItemTile(item: item),

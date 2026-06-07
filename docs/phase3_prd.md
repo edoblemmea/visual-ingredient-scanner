@@ -379,7 +379,7 @@ bytes. Depth-colorizer unit-tested (downscale size, near→blue/far→red, const
 
 **S15 — Distance correction slider.** ✅ **DONE.**
 [ResultScreen](../mobile/lib/screens/result_screen.dart) gains an "Adjust scale (optional)"
-expander: a dropdown to pick a detected object + a distance slider (5–200 cm). On slider release it
+expander: a dropdown to pick a detected object + a distance slider (10–120 cm, 1 cm steps). On slider release it
 calls `ScanController.applyDistanceCorrection(detection, metres)`, which samples the **raw** median
 depth for that bbox and sets `_depthScale = realDistance / rawMedian` (absolute — repeated
 corrections don't compound), then recomputes all weights via the pure G7 path. Shows the current
@@ -389,10 +389,22 @@ itself); the placeholder `WeightedReference` was removed. Unit test confirms the
 reads the set distance after correction. `flutter analyze` clean, 60 tests pass.
 > commit: `feat(mobile): manual distance/scale correction with recompute`
 
-**S16 — Manual annotation of undetected food.** Draw-rectangle tool + class picker from the
-density list; synthetic detection → depth sample → weight; editable/removable; feeds recipes.
-(FR7)
-> commit: `feat(mobile): manual bounding-box annotation for missed items`
+**S16 — Manual annotation & relabelling.** ✅ **DONE.**
+New [AnnotateScreen](../mobile/lib/screens/annotate_screen.dart), reached via an "Edit items" button on
+the result screen, lets the user fix the detection set over the captured image. Two placement modes,
+toggled by an app-bar **Smart** switch:
+- **Smart (default):** tap the *centre* of a missed item; [SmartBoxService](../mobile/lib/services/smart_box_service.dart)
+  grows a bbox outward from the tap while the edge depth stays within 12 % of the centre depth — a
+  data-driven box from the depth map, **no size priors** (consistent with CLAUDE.md). Shape/weight then
+  come from the existing pipeline.
+- **Manual:** drag a rectangle by hand (smart selection disabled).
+Both open a searchable class picker (all 91 density-table classes) → `addManualDetection`. Tapping an
+existing box (detected *or* manual) offers **Change label** (`relabelDetection`) or **Remove**
+(`removeDetection`). Detector output is never mutated: relabels/removals are stored as overlay maps in
+the controller and applied during the pure recompute (`effectiveDetections`), so everything updates live
+(G7) with no model re-inference and a re-scan starts clean. `SmartBoxService` is unit-tested (6 tests:
+extent, edge clamp, invalid/flat depth, median compatibility). `flutter analyze` clean, 66 tests pass.
+> commit: `feat(mobile): manual bounding-box annotation, smart-tap boxing, and relabelling`
 
 **S17 — On-device eval & polish.** Measure G1/G2/G3 on device, error/empty states, final UX pass;
 update report.
