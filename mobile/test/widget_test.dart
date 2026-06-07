@@ -16,9 +16,9 @@ void main() {
 
     expect(find.text('Foodie Lens'), findsOneWidget);
     expect(find.textContaining('classes loaded'), findsOneWidget);
-    expect(find.textContaining('Detector:'), findsOneWidget);
-    expect(find.textContaining('Depth:'), findsOneWidget);
-    expect(find.text('Scan ingredients'), findsOneWidget);
+    expect(find.textContaining('YOLO'), findsOneWidget);
+    expect(find.textContaining('Metric3D'), findsOneWidget);
+    expect(find.text('Scan'), findsOneWidget);
     expect(find.text('My recipes'), findsOneWidget);
   });
 }

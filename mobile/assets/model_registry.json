@@ -2,20 +2,20 @@
   "detectors": [
     {
       "id": "v26m_e30",
-      "label": "YOLO v26m · epoch30",
+      "label": "YOLO v26m (epoch 30)",
       "asset": "assets/models/epoch30.onnx",
       "inputSize": 640
     },
     {
       "id": "v26m_e40",
-      "label": "YOLO v26m · epoch40 (default)",
+      "label": "YOLO v26m (epoch 40)",
       "asset": "assets/models/epoch40.onnx",
       "inputSize": 640,
       "default": true
     },
     {
       "id": "v26m_best",
-      "label": "YOLO v26m · best",
+      "label": "YOLO v26m (best)",
       "asset": "assets/models/food_detector_v26m_best.onnx",
       "inputSize": 640
     }

@@ -70,8 +70,8 @@ canonical 616×1064 + de-canonicalise with focal; Depth Anything → 518×518). 
 ```json
 {
   "detectors": [
-    {"id":"v26m_e30","label":"YOLO v26m · epoch30 (default)","asset":"models/epoch30.onnx","inputSize":640,"default":true},
-    {"id":"v26m_e40","label":"YOLO v26m · epoch40","asset":"models/epoch40.onnx","inputSize":640}
+    {"id":"v26m_e30","label":"YOLO v26m (epoch 30)","asset":"models/epoch30.onnx","inputSize":640},
+    {"id":"v26m_e40","label":"YOLO v26m (epoch 40)","asset":"models/epoch40.onnx","inputSize":640,"default":true}
   ],
   "depth": [
     {"id":"metric3d","label":"Metric3D ViT-S (metric)","asset":"models/metric3d-vit-small-fp16.onnx","family":"metric3d","default":true},

@@ -126,27 +126,29 @@ class _ScanScreenState extends State<ScanScreen> {
       body: Column(
         children: [
           Expanded(child: _preview()),
+          if (_camera != null) _captureBar(),
           _sampleStrip(),
         ],
       ),
-      floatingActionButton: _camera != null
-          ? FloatingActionButton.large(
-              onPressed: _busy ? null : _capture,
-              child: const Icon(Icons.camera),
-            )
-          : null,
     );
   }
 
   Widget _preview() {
     final camera = _camera;
     if (camera != null) {
-      return Stack(
-        alignment: Alignment.center,
-        children: [
-          CameraPreview(camera),
-          if (_busy) const CircularProgressIndicator(),
-        ],
+      return Center(
+        child: AspectRatio(
+          aspectRatio: 1 / camera.value.aspectRatio,
+          child: ClipRect(
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                CameraPreview(camera),
+                if (_busy) const CircularProgressIndicator(),
+              ],
+            ),
+          ),
+        ),
       );
     }
     return Center(
@@ -172,6 +174,22 @@ class _ScanScreenState extends State<ScanScreen> {
               ),
             ],
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _captureBar() {
+    return SafeArea(
+      top: false,
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+        child: Center(
+          child: FloatingActionButton.large(
+            onPressed: _busy ? null : _capture,
+            child: const Icon(Icons.camera),
+          ),
         ),
       ),
     );

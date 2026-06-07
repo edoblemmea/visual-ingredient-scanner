@@ -49,7 +49,7 @@ void main() {
     final settings = await pumpSettings(tester);
     expect(settings.modelChoice.detectorId, 'v26m_e40'); // default
 
-    await tester.tap(find.text('YOLO v26m · best'));
+    await tester.tap(find.text('YOLO v26m (best)'));
     await tester.pump();
 
     expect(settings.settings.detectorId, 'v26m_best');

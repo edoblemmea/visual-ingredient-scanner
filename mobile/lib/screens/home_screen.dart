@@ -39,45 +39,73 @@ class HomeScreen extends StatelessWidget {
         ],
       ),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+        child: Column(
           children: [
-            Center(
-              child: Image.asset(
-                'assets/branding/app_icon.png',
-                width: 168,
-                height: 168,
-                semanticLabel: 'Foodie Lens',
+            Expanded(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Image.asset(
+                        'assets/branding/app_icon.png',
+                        width: 168,
+                        height: 168,
+                        semanticLabel: 'Foodie Lens',
+                      ),
+                      const SizedBox(height: 20),
+                      Text(
+                        'Scan ingredients, confirm weights, and turn them into recipes.',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 28),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: SizedBox(
+                              height: 64,
+                              child: FilledButton.icon(
+                                icon: const Icon(Icons.camera_alt),
+                                label: const Text('Scan'),
+                                onPressed: () => Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const ScanScreen(),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: SizedBox(
+                              height: 64,
+                              child: OutlinedButton.icon(
+                                icon: const Icon(Icons.bookmarks_outlined),
+                                label: const Text('My recipes'),
+                                onPressed: () => Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const SavedRecipesScreen(),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
-            const SizedBox(height: 20),
-            Text(
-              'Scan ingredients, confirm weights, and turn them into recipes.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 28),
-            FilledButton.icon(
-              icon: const Icon(Icons.camera_alt),
-              label: const Text('Scan ingredients'),
-              onPressed: () => Navigator.of(
-                context,
-              ).push(MaterialPageRoute(builder: (_) => const ScanScreen())),
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              icon: const Icon(Icons.bookmarks_outlined),
-              label: const Text('My recipes'),
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SavedRecipesScreen()),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+              child: Text(
+                '${catalog.labels.length} classes loaded · $detectorLabel · $depthLabel',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.labelSmall,
               ),
-            ),
-            const SizedBox(height: 28),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.inventory_2_outlined),
-              title: Text('${catalog.labels.length} classes loaded'),
-              subtitle: Text('Detector: $detectorLabel\nDepth: $depthLabel'),
             ),
           ],
         ),

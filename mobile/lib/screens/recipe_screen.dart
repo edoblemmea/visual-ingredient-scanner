@@ -19,7 +19,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
   final PageController _pageController = PageController(viewportFraction: 0.92);
   bool _started = false;
   bool _loading = true;
-  bool _savedAny = false;
+  final Set<int> _savedRecipeIndexes = {};
   int _selected = 0;
   List<Recipe> _recipes = const [];
 
@@ -50,22 +50,22 @@ class _RecipeScreenState extends State<RecipeScreen> {
     });
   }
 
-  Future<void> _saveSelected() async {
-    if (_recipes.isEmpty) return;
-    final recipe = _recipes[_selected.clamp(0, _recipes.length - 1)];
+  Future<void> _saveRecipe(int index) async {
+    if (index < 0 || index >= _recipes.length) return;
+    final recipe = _recipes[index];
     await context.read<SavedRecipeRepository>().saveRecipe(
       recipe,
       ingredientWeights: widget.ingredientWeights,
     );
     if (!mounted) return;
-    setState(() => _savedAny = true);
+    setState(() => _savedRecipeIndexes.add(index));
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text('${recipe.name} saved')));
   }
 
   Future<void> _finish() async {
-    if (_savedAny) {
+    if (_savedRecipeIndexes.isNotEmpty) {
       _goHome();
       return;
     }
@@ -97,15 +97,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Recipes'),
-        actions: [
-          TextButton(
-            onPressed: _loading || _recipes.isEmpty ? null : _saveSelected,
-            child: const Text('Save'),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Recipes')),
       body: _loading
           ? const _LoadingRecipes()
           : _recipes.isEmpty
@@ -114,17 +106,9 @@ class _RecipeScreenState extends State<RecipeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final entry in widget.ingredientWeights.entries)
-                        Chip(
-                          label: Text('${entry.key} ${entry.value.round()}g'),
-                          visualDensity: VisualDensity.compact,
-                        ),
-                    ],
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                  child: _YourIngredients(
+                    ingredientWeights: widget.ingredientWeights,
                   ),
                 ),
                 Expanded(
@@ -135,6 +119,8 @@ class _RecipeScreenState extends State<RecipeScreen> {
                     itemBuilder: (context, i) => _RecipePage(
                       recipe: _recipes[i],
                       selected: i == _selected,
+                      saved: _savedRecipeIndexes.contains(i),
+                      onSave: () => _saveRecipe(i),
                     ),
                   ),
                 ),
@@ -217,11 +203,13 @@ class _EmptyRecipes extends StatelessWidget {
         const SizedBox(height: 16),
         Wrap(
           alignment: WrapAlignment.center,
-          spacing: 8,
-          runSpacing: 8,
+          spacing: 4,
+          runSpacing: 4,
           children: [
             for (final entry in ingredientWeights.entries)
-              Chip(label: Text('${entry.key} ${entry.value.round()}g')),
+              _CompactIngredientChip(
+                label: '${entry.key} ${entry.value.round()}g',
+              ),
           ],
         ),
       ],
@@ -229,11 +217,66 @@ class _EmptyRecipes extends StatelessWidget {
   );
 }
 
+class _YourIngredients extends StatelessWidget {
+  const _YourIngredients({required this.ingredientWeights});
+
+  final Map<String, double> ingredientWeights;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Your ingredients:',
+          style: Theme.of(context).textTheme.labelMedium,
+        ),
+        const SizedBox(height: 4),
+        Wrap(
+          spacing: 4,
+          runSpacing: 4,
+          children: [
+            for (final entry in ingredientWeights.entries)
+              _CompactIngredientChip(
+                label: '${entry.key} ${entry.value.round()}g',
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _CompactIngredientChip extends StatelessWidget {
+  const _CompactIngredientChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Chip(
+      label: Text(label, style: Theme.of(context).textTheme.labelSmall),
+      visualDensity: VisualDensity.compact,
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      labelPadding: const EdgeInsets.symmetric(horizontal: 6),
+      padding: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+    );
+  }
+}
+
 class _RecipePage extends StatelessWidget {
-  const _RecipePage({required this.recipe, required this.selected});
+  const _RecipePage({
+    required this.recipe,
+    required this.selected,
+    required this.saved,
+    required this.onSave,
+  });
 
   final Recipe recipe;
   final bool selected;
+  final bool saved;
+  final VoidCallback onSave;
 
   @override
   Widget build(BuildContext context) {
@@ -246,7 +289,23 @@ class _RecipePage extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            Text(recipe.name, style: theme.textTheme.headlineSmall),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    recipe.name,
+                    style: theme.textTheme.headlineSmall,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                FilledButton.tonalIcon(
+                  icon: Icon(saved ? Icons.bookmark_added : Icons.bookmark_add),
+                  label: Text(saved ? 'Saved' : 'Save'),
+                  onPressed: saved ? null : onSave,
+                ),
+              ],
+            ),
             if (recipe.servings > 0) ...[
               const SizedBox(height: 6),
               Text(
@@ -259,11 +318,11 @@ class _RecipePage extends StatelessWidget {
               Text('Ingredients', style: theme.textTheme.titleMedium),
               const SizedBox(height: 8),
               Wrap(
-                spacing: 8,
-                runSpacing: 8,
+                spacing: 4,
+                runSpacing: 4,
                 children: [
                   for (final ingredient in recipe.ingredientsUsed)
-                    Chip(label: Text(ingredient)),
+                    _CompactIngredientChip(label: ingredient),
                 ],
               ),
             ],

@@ -27,6 +27,7 @@ class AnnotateScreen extends StatefulWidget {
 class _AnnotateScreenState extends State<AnnotateScreen> {
   bool _smart = true;
   bool _done = false;
+  bool _dirty = false;
   bool _allowPop = false;
   bool _captured = false;
   ScanEditSnapshot? _snapshot;
@@ -66,12 +67,15 @@ class _AnnotateScreenState extends State<AnnotateScreen> {
         appBar: AppBar(
           title: const Text('Edit items'),
           actions: [
-            TextButton(
-              onPressed: () {
-                _done = true;
-                _close();
-              },
-              child: const Text('Done'),
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: FilledButton(
+                onPressed: () {
+                  _done = true;
+                  _close();
+                },
+                child: const Text('Done'),
+              ),
             ),
           ],
         ),
@@ -170,11 +174,35 @@ class _AnnotateScreenState extends State<AnnotateScreen> {
     );
   }
 
-  void _cancelAndClose(ScanController controller) {
-    if (!_done) {
-      final snapshot = _snapshot;
-      if (snapshot != null) controller.restoreEditState(snapshot);
+  Future<void> _cancelAndClose(ScanController controller) async {
+    if (_done) {
+      _close();
+      return;
     }
+    if (_dirty) {
+      final discard = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Discard edits?'),
+          content: const Text(
+            'Going back will discard the edits you made to the ingredients.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Keep editing'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Discard'),
+            ),
+          ],
+        ),
+      );
+      if (discard != true || !mounted) return;
+    }
+    final snapshot = _snapshot;
+    if (snapshot != null) controller.restoreEditState(snapshot);
     _close();
   }
 
@@ -265,6 +293,7 @@ class _AnnotateScreenState extends State<AnnotateScreen> {
   ) async {
     final cls = await _pickClass(context);
     if (cls == null) return;
+    _dirty = true;
     controller.addManualDetection(
       Detection(className: cls, confidence: 1.0, bbox: box, isManual: true),
     );
@@ -302,10 +331,14 @@ class _AnnotateScreenState extends State<AnnotateScreen> {
     );
     if (!context.mounted || action == null) return;
     if (action == 'remove') {
+      _dirty = true;
       controller.removeDetection(det);
     } else if (action == 'relabel') {
       final cls = await _pickClass(context, current: det.className);
-      if (cls != null) controller.relabelDetection(det, cls);
+      if (cls != null) {
+        _dirty = true;
+        controller.relabelDetection(det, cls);
+      }
     }
   }
 
