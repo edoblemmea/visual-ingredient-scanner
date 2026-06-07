@@ -13,8 +13,7 @@ venv/
 models/yolo/*.tflite
 models/yolo/*.mlmodel
 models/yolo/*.mlpackage
-models/depth/*.onnx
-models/depth/*.onnx.data
+models/depth/metric3d-vit-small.onnx
 *epochs.pt
 
 # Datasets (downloaded from Roboflow, not committed)
