@@ -84,4 +84,50 @@ void main() {
     final box = SmartBoxService.boxAround(depth, 40, 40) as BBox;
     expect(depth.medianIn(box), closeTo(0.4, 0.01));
   });
+
+  test('captures a non-square (wide) object footprint, not just a ray length',
+      () {
+    // A wide object: 60 px across, 16 px tall. A 4-ray walk averages the
+    // horizontal and vertical extents into one square; the flood fill should
+    // recover the true aspect.
+    final depth = _scene(120, 80,
+        far: 1.2, near: 0.5, x1: 20, y1: 32, x2: 80, y2: 48);
+    final box = SmartBoxService.boxAround(depth, 50, 40)!;
+
+    expect(box.width, greaterThan(box.height)); // wide, not square
+    expect(box.width, closeTo(60, 6));
+    expect(box.height, closeTo(16, 6));
+  });
+
+  test('a single noisy interior pixel does not truncate the box', () {
+    // Object [30,70)×[30,70) at 0.5 m on a 1.0 m background, with one spike
+    // pixel along the rightward ray. The old ray walk stopped at the spike; the
+    // flood fill routes around it.
+    final depth = _scene(100, 100,
+        far: 1.0, near: 0.5, x1: 30, y1: 30, x2: 70, y2: 70);
+    depth.data[50 * 100 + 55] = 1.0; // spike on the row through the centre
+
+    final box = SmartBoxService.boxAround(depth, 50, 50)!;
+    expect(box.x2, greaterThan(64)); // reaches well past the spike at x=55
+  });
+
+  test('does not leak across a sharp depth step to a neighbour', () {
+    // Two objects at 0.5 m separated by a 1.2 m gap; tapping the left one must
+    // not swallow the right one.
+    final data = Float32List(100 * 60)..fillRange(0, 100 * 60, 1.2);
+    void fill(int x1, int x2) {
+      for (var y = 20; y < 40; y++) {
+        for (var x = x1; x < x2; x++) {
+          data[y * 100 + x] = 0.5;
+        }
+      }
+    }
+
+    fill(10, 30); // left object
+    fill(70, 90); // right object
+    final depth = DepthMap(width: 100, height: 60, data: data);
+
+    final box = SmartBoxService.boxAround(depth, 20, 30)!;
+    expect(box.x2, lessThan(50)); // stays on the left object
+  });
 }

@@ -394,9 +394,13 @@ New [AnnotateScreen](../mobile/lib/screens/annotate_screen.dart), reached via an
 the result screen, lets the user fix the detection set over the captured image. Two placement modes,
 toggled by an app-bar **Smart** switch:
 - **Smart (default):** tap the *centre* of a missed item; [SmartBoxService](../mobile/lib/services/smart_box_service.dart)
-  grows a bbox outward from the tap while the edge depth stays within 12 % of the centre depth — a
-  data-driven box from the depth map, **no size priors** (consistent with CLAUDE.md). Shape/weight then
-  come from the existing pipeline.
+  **flood-fills** the connected region of similar-depth pixels (4-connectivity BFS, tolerance vs. the
+  region's running mean so it follows a gently sloped surface) and takes a 2nd/98th-percentile-trimmed
+  bbox of that region — a data-driven box from the depth map, **no size priors** (consistent with
+  CLAUDE.md). This replaced an earlier 4-ray walk that was inaccurate (a single noisy pixel truncated
+  it, and a depth gradient let a ray run across the whole counter); the 2-D component captures the true
+  footprint and is robust to noise and neighbouring objects. Shape/weight then come from the existing
+  pipeline.
 - **Manual:** drag a rectangle by hand (smart selection disabled).
 Both open a searchable class picker (all 91 density-table classes) → `addManualDetection`. Tapping an
 existing box (detected *or* manual) offers **Change label** (`relabelDetection`) or **Remove**
