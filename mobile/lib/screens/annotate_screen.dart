@@ -64,6 +64,7 @@ class _AnnotateScreenState extends State<AnnotateScreen> {
         _cancelAndClose(controller);
       },
       child: Scaffold(
+        resizeToAvoidBottomInset: false,
         appBar: AppBar(
           title: const Text('Edit items'),
           actions: [
@@ -382,12 +383,13 @@ class _ClassPickerState extends State<_ClassPicker> {
   Widget build(BuildContext context) {
     final q = _query.trim().toLowerCase();
     final filtered = widget.classes.where((c) => c.contains(q)).toList();
+    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+    // Padding lifts the sheet above the keyboard; SizedBox shrinks by the same
+    // amount so the total stays at 0.7 * screenHeight and never overflows.
     return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
+      padding: EdgeInsets.only(bottom: keyboardHeight),
       child: SizedBox(
-        height: MediaQuery.of(context).size.height * 0.7,
+        height: MediaQuery.of(context).size.height * 0.7 - keyboardHeight,
         child: Column(
           children: [
             Padding(

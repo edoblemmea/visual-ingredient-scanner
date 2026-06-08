@@ -115,12 +115,14 @@ class _ScanScreenState extends State<ScanScreen> {
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      final bytes = await asset.originBytes;
-      if (bytes == null) {
+      // asset.file asks iOS to convert HEIF/HEIC → JPEG before returning,
+      // which the `image` decoder can handle. originBytes returns raw HEIF.
+      final file = await asset.file;
+      if (file == null) {
         _showError('Could not read gallery photo');
         return;
       }
-      await _confirmAndProcess(bytes);
+      await _confirmAndProcess(await file.readAsBytes());
     } catch (e) {
       _showError(e.toString());
     } finally {
@@ -164,6 +166,11 @@ class _ScanScreenState extends State<ScanScreen> {
 
   Future<void> _confirmAndProcess(Uint8List bytes) async {
     if (!mounted) return;
+    // Decode into the image cache before opening the dialog so it appears
+    // immediately without a blank-then-image flash.
+    final provider = MemoryImage(bytes);
+    await precacheImage(provider, context);
+    if (!mounted) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -173,7 +180,7 @@ class _ScanScreenState extends State<ScanScreen> {
           constraints: const BoxConstraints(maxHeight: 420),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: Image.memory(bytes, fit: BoxFit.contain),
+            child: Image(image: provider, fit: BoxFit.contain),
           ),
         ),
         actions: [
