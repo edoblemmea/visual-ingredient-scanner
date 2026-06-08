@@ -94,7 +94,7 @@ class WeightService {
         final r = w / 2;
         return math.pi * r * r * h;
       case Shape.box:
-        return w * h * math.max(w, h) * 0.5;
+        return w * h * math.min(w, h) * 0.5;
     }
   }
 }
