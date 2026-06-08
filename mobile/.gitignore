@@ -48,6 +48,42 @@ migrate_working_dir/
 **/ios/xcuserdata/
 **/*.xcuserstate
 
+### Xcode ###
+## User settings
+xcuserdata/
+
+## Xcode 8 and earlier
+*.xcscmblueprint
+*.xccheckout
+
+### Xcode Patch ###
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+!*.xcodeproj/xcshareddata/
+!*.xcodeproj/project.xcworkspace/
+!*.xcworkspace/contents.xcworkspacedata
+/*.gcno
+**/xcshareddata/WorkspaceSettings.xcsettings
+
+### Android ###
+## User-specific IDE files
+*.iml
+*.ipr
+*.iws
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/gradle.xml
+.idea/libraries/
+.idea/modules.xml
+.idea/navEditor.xml
+.idea/caches/
+
+### Android Patch ###
+*.apk
+*.aab
+*.ap_
+*.dex
+
 # Symbolication related
 app.*.symbols
 
