@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show DeviceOrientation, rootBundle;
+import 'package:permission_handler/permission_handler.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 import 'package:photo_manager/photo_manager.dart';
@@ -33,6 +34,11 @@ class _ScanScreenState extends State<ScanScreen> {
   @override
   void initState() {
     super.initState();
+    _initAll();
+  }
+
+  Future<void> _initAll() async {
+    await [Permission.camera, Permission.photos].request();
     _initCamera();
     _loadGalleryAssets();
   }
