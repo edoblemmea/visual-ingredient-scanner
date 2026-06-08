@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter/services.dart' show DeviceOrientation, rootBundle;
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 import 'package:photo_manager/photo_manager.dart';
@@ -54,6 +54,7 @@ class _ScanScreenState extends State<ScanScreen> {
         enableAudio: false,
       );
       await controller.initialize();
+      await controller.lockCaptureOrientation(DeviceOrientation.portraitUp);
       if (!mounted) {
         controller.dispose();
         return;
@@ -75,7 +76,11 @@ class _ScanScreenState extends State<ScanScreen> {
     if (camera == null || _busy) return;
     setState(() => _busy = true);
     try {
+      // Unlock so the capture EXIF reflects the true device orientation,
+      // then immediately re-lock to keep the preview fixed in portrait.
+      await camera.unlockCaptureOrientation();
       final file = await camera.takePicture();
+      await camera.lockCaptureOrientation(DeviceOrientation.portraitUp);
       await _confirmAndProcess(await file.readAsBytes());
     } catch (e) {
       _showError(e.toString());
