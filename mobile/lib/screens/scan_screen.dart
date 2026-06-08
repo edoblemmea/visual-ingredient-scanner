@@ -50,7 +50,7 @@ class _ScanScreenState extends State<ScanScreen> {
       );
       final controller = CameraController(
         back,
-        ResolutionPreset.high,
+        ResolutionPreset.max, // maps to AVCaptureSessionPresetPhoto → 4:3 sensor ratio
         enableAudio: false,
       );
       await controller.initialize();
