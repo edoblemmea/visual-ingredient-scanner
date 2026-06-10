@@ -57,8 +57,9 @@ shipped mobile state.
 
 ### Stage ① — YOLO v26m ONNX
 
-- Mobile model family: YOLO v26m ONNX, with epoch20, epoch30, epoch40, and best
-  checkpoints available for on-demand download; epoch40 is the default detector.
+- Mobile model family: YOLO v26m ONNX, with epoch10, epoch20, epoch30, epoch40,
+  and best checkpoints available for on-demand download; epoch20 is the default
+  detector.
 - Flutter runtime: `flutter_onnxruntime`
 - Phase 2 YOLO11s artifacts are retained under `models/yolo/v11s/` for prototype
   history. The old YOLO11s detector (`food_detector_v11s_old.onnx`, 83 classes) is

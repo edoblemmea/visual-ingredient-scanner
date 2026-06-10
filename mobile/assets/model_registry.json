@@ -1,12 +1,21 @@
 {
   "detectors": [
     {
+      "id": "v26m_e10",
+      "label": "YOLO v26m (epoch 10)",
+      "asset": "assets/models/epoch10.onnx",
+      "downloadUrl": "https://raw.githubusercontent.com/edoblemmea/visual-ingredient-scanner/master/mobile/assets/models/epoch10.onnx",
+      "sizeBytes": 81995050,
+      "inputSize": 640
+    },
+    {
       "id": "v26m_e20",
       "label": "YOLO v26m (epoch 20)",
       "asset": "assets/models/epoch20.onnx",
       "downloadUrl": "https://raw.githubusercontent.com/edoblemmea/visual-ingredient-scanner/master/mobile/assets/models/epoch20.onnx",
       "sizeBytes": 81995050,
-      "inputSize": 640
+      "inputSize": 640,
+      "default": true
     },
     {
       "id": "v26m_e30",
@@ -22,8 +31,7 @@
       "asset": "assets/models/epoch40.onnx",
       "downloadUrl": "https://raw.githubusercontent.com/edoblemmea/visual-ingredient-scanner/master/mobile/assets/models/epoch40.onnx",
       "sizeBytes": 81995050,
-      "inputSize": 640,
-      "default": true
+      "inputSize": 640
     },
     {
       "id": "v26m_best",

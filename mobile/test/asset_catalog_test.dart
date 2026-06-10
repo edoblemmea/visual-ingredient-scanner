@@ -9,13 +9,15 @@ void main() {
 
     expect(
       registry.detectors.map((d) => d.id),
-      containsAll(['v26m_e20', 'v26m_e30', 'v26m_e40', 'v26m_best', 'v11s_old']),
+      containsAll(
+        ['v26m_e10', 'v26m_e20', 'v26m_e30', 'v26m_e40', 'v26m_best', 'v11s_old'],
+      ),
     );
     expect(
       registry.depth.map((d) => d.id),
       containsAll(['metric3d', 'depthanything']),
     );
-    expect(registry.defaultDetector.id, 'v26m_e40');
+    expect(registry.defaultDetector.id, 'v26m_e20');
     expect(registry.defaultDepth.id, 'metric3d');
 
     final depthAnything = registry.depth.firstWhere(
