@@ -208,9 +208,12 @@ class ScanController extends ChangeNotifier {
       (d) => d.id == choice.depthId,
     );
 
+    final labels = det.labelsAsset == null
+        ? catalog.labels
+        : await AssetCatalog.loadDetectorLabels(det.labelsAsset!);
     _detector = await DetectorService.fromFile(
       filePath: '$modelsDir/${det.filename}',
-      labels: catalog.labels,
+      labels: labels,
       inputSize: det.inputSize,
     );
     _depth = await DepthService.fromFile(

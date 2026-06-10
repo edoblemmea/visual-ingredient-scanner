@@ -57,11 +57,14 @@ shipped mobile state.
 
 ### Stage ① — YOLO v26m ONNX
 
-- Mobile model family: YOLO v26m ONNX, with epoch30, epoch40, and best checkpoints
-  available for on-demand download; epoch40 is the default detector.
+- Mobile model family: YOLO v26m ONNX, with epoch20, epoch30, epoch40, and best
+  checkpoints available for on-demand download; epoch40 is the default detector.
 - Flutter runtime: `flutter_onnxruntime`
 - Phase 2 YOLO11s artifacts are retained under `models/yolo/v11s/` for prototype
-  history, but the shipped mobile app uses the v26m ONNX assets.
+  history. The old YOLO11s detector (`food_detector_v11s_old.onnx`, 83 classes) is
+  also downloadable for comparison — it carries its own labels file
+  (`labelsAsset` in `model_registry.json`) because its class IDs differ from the
+  shared 91-class `labels.txt`. The default detector remains v26m.
 - Training: fine-tune on a curated food dataset assembled on Roboflow Universe
 - Training environment: Google Colab, T4 GPU, PyTorch + Ultralytics
 

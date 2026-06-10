@@ -9,6 +9,7 @@ class DetectorModel {
     required this.downloadUrl,
     required this.sizeBytes,
     required this.inputSize,
+    required this.labelsAsset,
     required this.isDefault,
   });
 
@@ -18,6 +19,10 @@ class DetectorModel {
   final String downloadUrl;
   final int sizeBytes;
   final int inputSize;
+
+  /// Labels file for detectors whose class list differs from the shared
+  /// `labels.txt` (e.g. the 83-class YOLO11s prototype). Null = shared list.
+  final String? labelsAsset;
   final bool isDefault;
 
   String get filename => asset.split('/').last;
@@ -29,6 +34,7 @@ class DetectorModel {
         downloadUrl: json['downloadUrl'] as String,
         sizeBytes: json['sizeBytes'] as int? ?? 0,
         inputSize: json['inputSize'] as int? ?? 640,
+        labelsAsset: json['labelsAsset'] as String?,
         isDefault: json['default'] as bool? ?? false,
       );
 }

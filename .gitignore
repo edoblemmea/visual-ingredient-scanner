@@ -34,3 +34,7 @@ mobile/build/
 mobile/.dart_tool/
 mobile/.flutter-plugins
 mobile/.flutter-plugins-dependencies
+
+# Reports and presentation
+report_gen/
+presentation_gen/

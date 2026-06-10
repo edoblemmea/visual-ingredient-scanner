@@ -9,7 +9,7 @@ void main() {
 
     expect(
       registry.detectors.map((d) => d.id),
-      containsAll(['v26m_e30', 'v26m_e40', 'v26m_best']),
+      containsAll(['v26m_e20', 'v26m_e30', 'v26m_e40', 'v26m_best', 'v11s_old']),
     );
     expect(
       registry.depth.map((d) => d.id),
@@ -22,6 +22,19 @@ void main() {
       (d) => d.id == 'depthanything',
     );
     expect(depthAnything.externalData, isNotNull);
+  });
+
+  test('v11s detector carries its own 83-class labels file', () async {
+    final registry = await AssetCatalog.loadRegistry();
+    final v11s = registry.detectors.firstWhere((d) => d.id == 'v11s_old');
+    expect(v11s.labelsAsset, 'assets/data/labels_v11s.txt');
+
+    final labels = await AssetCatalog.loadDetectorLabels(v11s.labelsAsset!);
+    expect(labels.length, 83);
+    expect(labels.first, 'apple');
+
+    final densities = await AssetCatalog.loadDensityTable();
+    expect(labels.where((l) => !densities.containsKey(l)), isEmpty);
   });
 
   test('labels.txt loads exactly the expected class count', () async {

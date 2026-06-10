@@ -28,18 +28,32 @@ class AssetCatalog {
   }
 
   static Future<List<String>> loadLabels() async {
-    final raw = await rootBundle.loadString('assets/data/labels.txt');
-    final labels = const LineSplitter()
-        .convert(raw)
-        .map((l) => l.trim())
-        .where((l) => l.isNotEmpty)
-        .toList(growable: false);
+    final labels = await _readLabelLines('assets/data/labels.txt');
     if (labels.length != kExpectedClassCount) {
       throw StateError(
         'labels.txt has ${labels.length} classes, expected $kExpectedClassCount',
       );
     }
     return labels;
+  }
+
+  /// Labels for a detector with its own class list (`labelsAsset` in the
+  /// registry). The shared [kExpectedClassCount] check does not apply.
+  static Future<List<String>> loadDetectorLabels(String asset) async {
+    final labels = await _readLabelLines(asset);
+    if (labels.isEmpty) {
+      throw StateError('$asset is empty');
+    }
+    return labels;
+  }
+
+  static Future<List<String>> _readLabelLines(String asset) async {
+    final raw = await rootBundle.loadString(asset);
+    return const LineSplitter()
+        .convert(raw)
+        .map((l) => l.trim())
+        .where((l) => l.isNotEmpty)
+        .toList(growable: false);
   }
 
   static Future<Map<String, double>> loadDensityTable() async {

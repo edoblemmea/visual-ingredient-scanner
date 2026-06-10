@@ -4,6 +4,7 @@
   "banana": 940,
   "blackberries": 560,
   "blueberries": 600,
+  "cantaloupe": 950,
   "cherry": 1000,
   "clementine": 870,
   "coconut": 900,
@@ -73,6 +74,7 @@
   "butter": 910,
   "cheese": 1080,
   "cream": 1010,
+  "heavy_cream": 1010,
   "milk": 1030,
   "yogurt": 1040,
 
@@ -103,6 +105,7 @@
   "rice": 850,
   "salt": 1300,
   "sauce": 1100,
+  "soda": 1040,
   "soft_drink": 1040,
   "spices": 500,
   "sugar": 850,

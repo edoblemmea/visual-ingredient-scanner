@@ -1,6 +1,14 @@
 {
   "detectors": [
     {
+      "id": "v26m_e20",
+      "label": "YOLO v26m (epoch 20)",
+      "asset": "assets/models/epoch20.onnx",
+      "downloadUrl": "https://raw.githubusercontent.com/edoblemmea/visual-ingredient-scanner/master/mobile/assets/models/epoch20.onnx",
+      "sizeBytes": 81995050,
+      "inputSize": 640
+    },
+    {
       "id": "v26m_e30",
       "label": "YOLO v26m (epoch 30)",
       "asset": "assets/models/epoch30.onnx",
@@ -24,6 +32,15 @@
       "downloadUrl": "https://raw.githubusercontent.com/edoblemmea/visual-ingredient-scanner/master/mobile/assets/models/food_detector_v26m_best.onnx",
       "sizeBytes": 81944963,
       "inputSize": 640
+    },
+    {
+      "id": "v11s_old",
+      "label": "YOLO11s (old prototype)",
+      "asset": "assets/models/food_detector_v11s_old.onnx",
+      "downloadUrl": "https://raw.githubusercontent.com/edoblemmea/visual-ingredient-scanner/master/mobile/assets/models/food_detector_v11s_old.onnx",
+      "sizeBytes": 38087869,
+      "inputSize": 640,
+      "labelsAsset": "assets/data/labels_v11s.txt"
     }
   ],
   "depth": [
